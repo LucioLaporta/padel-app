@@ -4,6 +4,7 @@ import StarRating from "../components/StarRating";
 import { Cancha } from "../types/Cancha";
 import { Jugador } from "../types/Jugador";
 import { Partido } from "../types/Partido";
+import PartidoCard from "../components/PartidoCard";
 
 export default function Home() {
   // =====================
@@ -192,6 +193,75 @@ export default function Home() {
               }
             />
           )}
+          <hr />
+
+<h2>Partidos</h2>
+
+{partidos.map((partido) => {
+  const cancha = canchas.find(
+    (c) => c.id === partido.canchaId
+  );
+
+  const jugadoresPartido = jugadores.filter((j) =>
+    partido.jugadoresIds.includes(j.id)
+  );
+
+  if (!cancha) return null;
+const finalizarPartido = (id: number) => {
+  setPartidos((prev) =>
+    prev.map((p) =>
+      p.id === id ? { ...p, finalizado: true } : p
+    )
+  );
+};
+const puedeVotarCancha = (canchaId: number) => {
+  if (!user) return false;
+
+  return partidos.some(
+    (p) =>
+      p.canchaId === canchaId &&
+      p.finalizado &&
+      p.jugadoresIds.includes(user.id) &&
+      !p.votosCancha.includes(user.id)
+  );
+};
+const handleRateCancha = (canchaId: number, value: number) => {
+  setCanchas((prev) =>
+    prev.map((c) => {
+      if (c.id !== canchaId) return c;
+
+      const total = c.rating * c.votos + value;
+      const nuevosVotos = c.votos + 1;
+
+      return {
+        ...c,
+        rating: total / nuevosVotos,
+        votos: nuevosVotos,
+      };
+    })
+  );
+
+  setPartidos((prev) =>
+    prev.map((p) =>
+      p.canchaId === canchaId && p.jugadoresIds.includes(user!.id)
+        ? { ...p, votosCancha: [...p.votosCancha, user!.id] }
+        : p
+    )
+  );
+};
+
+  return (
+    <PartidoCard
+  key={partido.id}
+  partido={partido}
+  cancha={cancha}
+  jugadores={jugadoresPartido}
+  onFinalizar={finalizarPartido}
+/>
+
+  );
+})}
+
         </div>
       ))}
     </div>
