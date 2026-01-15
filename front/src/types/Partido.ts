@@ -6,21 +6,16 @@ import { Jugador } from "../types/Jugador";
 import { Partido } from "../types/Partido";
 
 export default function Home() {
-  // =====================
-  // AUTH
-  // =====================
   const { user, login, logout } = useAuth();
 
+  // ───────────────── USUARIOS ─────────────────
   const fakeUser = {
     id: 1,
     username: "nahuel",
-    rating: 4.5,
     category: "6ta",
   };
 
-  // =====================
-  // STATES
-  // =====================
+  // ───────────────── ESTADOS ─────────────────
   const [canchas, setCanchas] = useState<Cancha[]>([
     { id: 1, nombre: "Cancha Central", rating: 4.2, votos: 10 },
     { id: 2, nombre: "Cancha Norte", rating: 3.8, votos: 6 },
@@ -39,6 +34,7 @@ export default function Home() {
       canchaId: 1,
       jugadoresIds: [1, 2],
       finalizado: true,
+      votosCancha: [],
       votosJugador: [],
     },
     {
@@ -46,13 +42,46 @@ export default function Home() {
       canchaId: 2,
       jugadoresIds: [2, 3],
       finalizado: false,
+      votosCancha: [],
       votosJugador: [],
     },
   ]);
 
-  // =====================
-  // LOGICA JUGADORES
-  // =====================
+  // ───────────────── LÓGICA CANCHAS ─────────────────
+  const puedeVotarCancha = (canchaId: number) => {
+    if (!user) return false;
+
+    return partidos.some(
+      (p) =>
+        p.canchaId === canchaId &&
+        p.finalizado &&
+        p.jugadoresIds.includes(user.id) &&
+        !p.votosCancha.includes(user.id)
+    );
+  };
+
+  const handleRateCancha = (canchaId: number, value: number) => {
+    setCanchas((prev) =>
+      prev.map((c) => {
+        if (c.id !== canchaId) return c;
+
+        const total = c.rating * c.votos + value;
+        const votos = c.votos + 1;
+
+        return { ...c, rating: total / votos, votos };
+      })
+    );
+
+    setPartidos((prev) =>
+      prev.map((p) =>
+        p.canchaId === canchaId
+          ? { ...p, votosCancha: [...p.votosCancha, user!.id] }
+          : p
+      )
+    );
+  };
+
+  // ───────────────── LÓGICA JUGADORES ─────────────────
   const puedeVotarJugador = (jugadorId: number) => {
     if (!user) return false;
 
@@ -61,64 +90,33 @@ export default function Home() {
         p.finalizado &&
         p.jugadoresIds.includes(user.id) &&
         p.jugadoresIds.includes(jugadorId) &&
-        !p.votosJugador?.includes(user.id)
+        !p.votosJugador.includes(user.id)
     );
   };
 
   const handleRateJugador = (jugadorId: number, value: number) => {
     setJugadores((prev) =>
-      prev.map((j) =>
-        j.id !== jugadorId
-          ? j
-          : {
-              ...j,
-              rating: (j.rating * j.votos + value) / (j.votos + 1),
-              votos: j.votos + 1,
-            }
-      )
+      prev.map((j) => {
+        if (j.id !== jugadorId) return j;
+
+        const total = j.rating * j.votos + value;
+        const votos = j.votos + 1;
+
+        return { ...j, rating: total / votos, votos };
+      })
     );
 
     setPartidos((prev) =>
       prev.map((p) =>
         p.jugadoresIds.includes(jugadorId) &&
         p.jugadoresIds.includes(user!.id)
-          ? { ...p, votosJugador: [...(p.votosJugador || []), user!.id] }
+          ? { ...p, votosJugador: [...p.votosJugador, user!.id] }
           : p
       )
     );
   };
 
-  // =====================
-  // LOGICA CANCHAS
-  // =====================
-  const puedeVotarCancha = (canchaId: number) => {
-    if (!user) return false;
-
-    return partidos.some(
-      (p) =>
-        p.canchaId === canchaId &&
-        p.finalizado &&
-        p.jugadoresIds.includes(user.id)
-    );
-  };
-
-  const handleRateCancha = (canchaId: number, value: number) => {
-    setCanchas((prev) =>
-      prev.map((c) =>
-        c.id !== canchaId
-          ? c
-          : {
-              ...c,
-              rating: (c.rating * c.votos + value) / (c.votos + 1),
-              votos: c.votos + 1,
-            }
-      )
-    );
-  };
-
-  // =====================
-  // RENDER
-  // =====================
+  // ───────────────── UI ─────────────────
   return (
     <div style={{ padding: "20px" }}>
       <h1>Padel App</h1>
@@ -155,10 +153,8 @@ export default function Home() {
 
           {puedeVotarCancha(cancha.id) && (
             <StarRating
-              rating={cancha.rating}
-              onRate={(value) =>
-                handleRateCancha(cancha.id, value)
-              }
+              rating={0}
+              onRate={(value) => handleRateCancha(cancha.id, value)}
             />
           )}
         </div>
@@ -186,7 +182,7 @@ export default function Home() {
 
           {puedeVotarJugador(jugador.id) && (
             <StarRating
-              rating={jugador.rating}
+              rating={0}
               onRate={(value) =>
                 handleRateJugador(jugador.id, value)
               }
