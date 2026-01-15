@@ -4,6 +4,8 @@ const cors = require("cors");
 // Rutas
 const healthRoutes = require("./routes/health.routes");
 const authRoutes = require("./routes/auth.routes");
+const courtsRoutes = require("./routes/courts.routes");
+const matchesRoutes = require("./routes/matches.routes");
 
 const app = express();
 
@@ -12,8 +14,10 @@ app.use(cors());
 app.use(express.json());
 
 // Rutas
-app.use("/api", healthRoutes);
+app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/courts", courtsRoutes);
+app.use("/api/matches", matchesRoutes);
 
 // Ruta raíz de prueba
 app.get("/", (req, res) => {
