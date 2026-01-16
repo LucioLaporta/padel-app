@@ -1,11 +1,20 @@
 const express = require("express");
 const router = express.Router();
-const { getMatches, createMatch } = require("../controllers/matches.controller");
 
-// Traer todos los partidos
+const authMiddleware = require("../middlewares/auth.middleware");
+const {
+  getMatches,
+  createMatch,
+  joinMatch,
+} = require("../controllers/matches.controller");
+
+// Traer todos los partidos (público)
 router.get("/", getMatches);
 
-// Crear un partido
-router.post("/", createMatch);
+// Crear un partido (requiere login)
+router.post("/", authMiddleware, createMatch);
+
+// Unirse a un partido (requiere login)
+router.post("/:id/join", authMiddleware, joinMatch);
 
 module.exports = router;

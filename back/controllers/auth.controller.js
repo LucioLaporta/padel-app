@@ -80,7 +80,7 @@ const login = async (req, res) => {
         email: user.email,
         username: user.username,
       },
-      "secreto_super_padellero",
+      process.env.JWT_SECRET,
       { expiresIn: "24h" }
     );
 
