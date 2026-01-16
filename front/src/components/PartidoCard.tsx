@@ -1,6 +1,6 @@
-import { Partido } from "../types/Partido";
 import { Cancha } from "../types/Cancha";
 import { Jugador } from "../types/Jugador";
+import { Partido } from "../types/Partido";
 
 type Props = {
   partido: Partido;
@@ -20,14 +20,20 @@ export default function PartidoCard({
       style={{
         border: "1px solid #666",
         padding: "12px",
-        marginBottom: "12px",
         borderRadius: "8px",
+        marginBottom: "12px",
       }}
     >
-      <h3>Partido #{partido.id}</h3>
-      <p>Cancha: {cancha.nombre}</p>
+      <h3>🏟️ {cancha.nombre}</h3>
 
-      <p>Jugadores:</p>
+      <p>
+        Estado:{" "}
+        <strong>
+          {partido.finalizado ? "Finalizado" : "En juego"}
+        </strong>
+      </p>
+
+      <h4>Jugadores</h4>
       <ul>
         {jugadores.map((j) => (
           <li key={j.id}>
@@ -35,13 +41,6 @@ export default function PartidoCard({
           </li>
         ))}
       </ul>
-
-      <p>
-        Estado:{" "}
-        <strong>
-          {partido.finalizado ? "Finalizado" : "En curso"}
-        </strong>
-      </p>
 
       {!partido.finalizado && (
         <button onClick={() => onFinalizar(partido.id)}>
