@@ -1,13 +1,16 @@
 import { useState } from "react";
-import { useAuth } from "../context/AuthContext";
 
 type Props = {
   rating: number;
+  disabled?: boolean;
   onRate: (value: number) => void;
 };
 
-export default function StarRating({ rating, onRate }: Props) {
-  const { user } = useAuth();
+export default function StarRating({
+  rating,
+  onRate,
+  disabled = false,
+}: Props) {
   const [hover, setHover] = useState(0);
 
   return (
@@ -16,21 +19,21 @@ export default function StarRating({ rating, onRate }: Props) {
         <span
           key={value}
           style={{
-            cursor: user ? "pointer" : "not-allowed",
+            cursor: disabled ? "not-allowed" : "pointer",
             color:
-  user && value <= (hover || rating)
-    ? "gold"
-    : "lightgray",
-
+              value <= (hover || rating)
+                ? "gold"
+                : "lightgray",
           }}
-          onMouseEnter={() => user && setHover(value)}
+          onMouseEnter={() => !disabled && setHover(value)}
           onMouseLeave={() => setHover(0)}
-          onClick={() => user && onRate(value)}
+          onClick={() => !disabled && onRate(value)}
         >
           ★
         </span>
       ))}
-      {!user && (
+
+      {disabled && (
         <p style={{ fontSize: "12px", color: "red" }}>
           Iniciá sesión para puntuar
         </p>
