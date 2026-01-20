@@ -1,24 +1,49 @@
 const express = require("express");
 const router = express.Router();
 
-const authMiddleware = require("../middlewares/auth.middleware");
+// Controllers
 const {
   getMatches,
   createMatch,
   joinMatch,
   leaveMatch,
+  deleteMatch,
 } = require("../controllers/matches.controller");
 
-// Traer todos los partidos (público)
+// Middleware de auth (JWT)
+const auth = require("../middlewares/auth");
+
+/**
+ * GET /api/matches
+ * Público
+ * Filtros:
+ *  - ?level=6ta
+ *  - ?available=true
+ */
 router.get("/", getMatches);
 
-// Crear un partido (requiere login)
-router.post("/", authMiddleware, createMatch);
+/**
+ * POST /api/matches
+ * Crear partido (logueado)
+ */
+router.post("/", auth, createMatch);
 
-// Unirse a un partido (requiere login)
-router.post("/:id/join", authMiddleware, joinMatch);
+/**
+ * POST /api/matches/:id/join
+ * Unirse a un partido (logueado)
+ */
+router.post("/:id/join", auth, joinMatch);
 
-// Salir de un partido (requiere login)
-router.post("/:id/leave", authMiddleware, leaveMatch);
+/**
+ * POST /api/matches/:id/leave
+ * Salir de un partido (logueado)
+ */
+router.post("/:id/leave", auth, leaveMatch);
+
+/**
+ * DELETE /api/matches/:id
+ * Borrar partido (solo creador)
+ */
+router.delete("/:id", auth, deleteMatch);
 
 module.exports = router;

@@ -1,10 +1,8 @@
 const pool = require("../config/db");
 
 /**
- * ===============================
  * GET /api/matches
- * Listado de partidos (UX)
- * ===============================
+ * Traer partidos (público + UX)
  */
 const getMatches = async (req, res) => {
   try {
@@ -19,7 +17,6 @@ const getMatches = async (req, res) => {
     const values = [];
     let idx = 1;
 
-    // Filtro por nivel
     if (level) {
       query += ` AND level = $${idx}`;
       values.push(level);
@@ -33,20 +30,26 @@ const getMatches = async (req, res) => {
     let matches = result.rows.map((match) => {
       const playersCount = match.players.length;
       const maxPlayers = 4;
-      const isJoined = userId ? match.players.includes(userId) : false;
+      const isOwner = userId && match.created_by === userId;
 
       return {
         ...match,
         players_count: playersCount,
         spots_left: maxPlayers - playersCount,
         is_full: playersCount >= maxPlayers,
-        is_joined: isJoined,
+
+        is_joined: userId ? match.players.includes(userId) : false,
+        is_owner: !!isOwner,
+
         can_join:
-          !!userId && !isJoined && playersCount < maxPlayers,
+          !!userId &&
+          !match.players.includes(userId) &&
+          playersCount < maxPlayers,
+
+        can_delete: !!isOwner && playersCount === 1,
       };
     });
 
-    // Solo disponibles
     if (available === "true") {
       matches = matches.filter((m) => !m.is_full);
     }
@@ -59,67 +62,12 @@ const getMatches = async (req, res) => {
 };
 
 /**
- * ===============================
- * GET /api/matches/:id
- * Detalle de un partido (UX)
- * ===============================
- */
-const getMatchById = async (req, res) => {
-  try {
-    const userId = req.user?.id || null;
-    const matchId = req.params.id;
-
-    const matchResult = await pool.query(
-      "SELECT * FROM matches WHERE id = $1",
-      [matchId]
-    );
-
-    if (matchResult.rows.length === 0) {
-      return res.status(404).json({ message: "Partido no encontrado" });
-    }
-
-    const match = matchResult.rows[0];
-
-    // Traer jugadores
-    const playersResult = await pool.query(
-      `SELECT id, name
-       FROM users
-       WHERE id = ANY($1::int[])`,
-      [match.players]
-    );
-
-    const playersCount = match.players.length;
-    const maxPlayers = 4;
-    const isJoined = userId ? match.players.includes(userId) : false;
-
-    res.json({
-      id: match.id,
-      date: match.date,
-      level: match.level,
-      price: match.price,
-      players: playersResult.rows,
-      players_count: playersCount,
-      spots_left: maxPlayers - playersCount,
-      is_full: playersCount >= maxPlayers,
-      is_joined: isJoined,
-      can_join: !!userId && !isJoined && playersCount < maxPlayers,
-      can_leave: !!userId && isJoined,
-    });
-  } catch (error) {
-    console.error("Error getMatchById:", error);
-    res.status(500).json({ message: "Error al obtener partido" });
-  }
-};
-
-/**
- * ===============================
  * POST /api/matches
  * Crear partido
- * ===============================
  */
 const createMatch = async (req, res) => {
   try {
-    if (!req.user || !req.user.id) {
+    if (!req.user?.id) {
       return res.status(401).json({ message: "No autorizado" });
     }
 
@@ -132,9 +80,19 @@ const createMatch = async (req, res) => {
         .json({ message: "Todos los campos son obligatorios" });
     }
 
-    const levelsPermitidos = ["6ta", "5ta", "4ta", "3ra", "2da", "1ra"];
+    const levelsPermitidos = [
+      "8va",
+      "7ma",
+      "6ta",
+      "5ta",
+      "4ta",
+      "3ra",
+      "2da",
+      "1ra",
+    ];
+
     if (!levelsPermitidos.includes(level)) {
-      return res.status(400).json({ message: "Nivel no válido" });
+      return res.status(400).json({ message: "Categoría no válida" });
     }
 
     if (price <= 0) {
@@ -153,13 +111,13 @@ const createMatch = async (req, res) => {
 
     if (existing.rows.length > 0) {
       return res.status(400).json({
-        message: "Ya existe un partido en ese horario y nivel",
+        message: "Ya existe un partido en ese horario y categoría",
       });
     }
 
     const result = await pool.query(
-      `INSERT INTO matches (date, players, level, price)
-       VALUES ($1, ARRAY[$4]::int[], $2, $3)
+      `INSERT INTO matches (date, players, level, price, created_by)
+       VALUES ($1, ARRAY[$4]::int[], $2, $3, $4)
        RETURNING *`,
       [date, level, price, userId]
     );
@@ -175,13 +133,11 @@ const createMatch = async (req, res) => {
 };
 
 /**
- * ===============================
  * POST /api/matches/:id/join
- * ===============================
  */
 const joinMatch = async (req, res) => {
   try {
-    if (!req.user || !req.user.id) {
+    if (!req.user?.id) {
       return res.status(401).json({ message: "No autorizado" });
     }
 
@@ -193,20 +149,18 @@ const joinMatch = async (req, res) => {
       [matchId]
     );
 
-    if (rows.length === 0) {
+    if (!rows.length) {
       return res.status(404).json({ message: "Partido no encontrado" });
     }
 
     const match = rows[0];
 
     if (match.players.includes(userId)) {
-      return res.status(400).json({ message: "Ya estás en este partido" });
+      return res.status(400).json({ message: "Ya estás en el partido" });
     }
 
     if (match.players.length >= 4) {
-      return res
-        .status(400)
-        .json({ message: "El partido ya está completo" });
+      return res.status(400).json({ message: "Partido completo" });
     }
 
     const updated = await pool.query(
@@ -223,18 +177,16 @@ const joinMatch = async (req, res) => {
     });
   } catch (error) {
     console.error("Error joinMatch:", error);
-    res.status(500).json({ message: "Error al unirse al partido" });
+    res.status(500).json({ message: "Error al unirse" });
   }
 };
 
 /**
- * ===============================
  * POST /api/matches/:id/leave
- * ===============================
  */
 const leaveMatch = async (req, res) => {
   try {
-    if (!req.user || !req.user.id) {
+    if (!req.user?.id) {
       return res.status(401).json({ message: "No autorizado" });
     }
 
@@ -255,14 +207,56 @@ const leaveMatch = async (req, res) => {
     });
   } catch (error) {
     console.error("Error leaveMatch:", error);
-    res.status(500).json({ message: "Error al salir del partido" });
+    res.status(500).json({ message: "Error al salir" });
+  }
+};
+
+/**
+ * DELETE /api/matches/:id
+ */
+const deleteMatch = async (req, res) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({ message: "No autorizado" });
+    }
+
+    const matchId = req.params.id;
+    const userId = req.user.id;
+
+    const { rows } = await pool.query(
+      "SELECT * FROM matches WHERE id = $1",
+      [matchId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Partido no encontrado" });
+    }
+
+    const match = rows[0];
+
+    if (match.created_by !== userId) {
+      return res.status(403).json({ message: "No sos el creador" });
+    }
+
+    if (match.players.length > 1) {
+      return res.status(400).json({
+        message: "No podés borrar el partido si hay otros jugadores",
+      });
+    }
+
+    await pool.query("DELETE FROM matches WHERE id = $1", [matchId]);
+
+    res.json({ message: "Partido eliminado correctamente" });
+  } catch (error) {
+    console.error("Error deleteMatch:", error);
+    res.status(500).json({ message: "Error al borrar" });
   }
 };
 
 module.exports = {
   getMatches,
-  getMatchById,
   createMatch,
   joinMatch,
   leaveMatch,
+  deleteMatch,
 };
