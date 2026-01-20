@@ -10,20 +10,9 @@ import { Partido } from "../types/Partido";
 // =====================
 // SERVICES
 // =====================
-import {
-  getCanchas,
-  votarCancha,
-} from "../services/canchas.service";
-
-import {
-  getJugadores,
-  votarJugador,
-} from "../services/jugadores.service";
-
-import {
-  getPartidos,
-  finalizarPartido,
-} from "../services/partidos.service";
+import { getCanchas, votarCancha } from "../services/canchas.service";
+import { getJugadores, votarJugador } from "../services/jugadores.service";
+import { getPartidos, finalizarPartido } from "../services/partidos.service";
 
 export default function Home() {
   // =====================
@@ -43,12 +32,17 @@ export default function Home() {
   const [canchas, setCanchas] = useState<Cancha[]>([]);
   const [jugadores, setJugadores] = useState<Jugador[]>([]);
   const [partidos, setPartidos] = useState<Partido[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // =====================
-  // CARGA INICIAL
+  // CARGA DE DATOS
   // =====================
-  useEffect(() => {
-    const cargarDatos = async () => {
+  const cargarDatos = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
       const [canchasData, jugadoresData, partidosData] =
         await Promise.all([
           getCanchas(),
@@ -59,8 +53,18 @@ export default function Home() {
       setCanchas(canchasData);
       setJugadores(jugadoresData);
       setPartidos(partidosData);
-    };
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Error cargando datos"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     cargarDatos();
   }, []);
 
@@ -92,32 +96,30 @@ export default function Home() {
   };
 
   // =====================
-  // HANDLERS (API ONLY)
+  // HANDLERS
   // =====================
-  const handleRateCancha = async (
-    canchaId: number,
-    value: number
-  ) => {
+  const handleRateCancha = async (canchaId: number, value: number) => {
     if (!user) return;
-
     await votarCancha(canchaId, value);
-    setCanchas(await getCanchas());
+    cargarDatos();
   };
 
-  const handleRateJugador = async (
-    jugadorId: number,
-    value: number
-  ) => {
+  const handleRateJugador = async (jugadorId: number, value: number) => {
     if (!user) return;
-
     await votarJugador(jugadorId, value);
-    setJugadores(await getJugadores());
+    cargarDatos();
   };
 
   const handleFinalizarPartido = async (id: number) => {
     await finalizarPartido(id);
-    setPartidos(await getPartidos());
+    cargarDatos();
   };
+
+  // =====================
+  // RENDER CONTROL
+  // =====================
+  if (loading) return <p>Cargando aplicación...</p>;
+  if (error) return <p style={{ color: "red" }}>{error}</p>;
 
   // =====================
   // RENDER
