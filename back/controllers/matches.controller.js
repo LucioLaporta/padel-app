@@ -1,9 +1,6 @@
 const pool = require("../config/db");
 
-/**
- * GET /api/matches
- * Traer partidos (público + UX)
- */
+// GET /api/matches
 const getMatches = async (req, res) => {
   try {
     const userId = req.user?.id || null;
@@ -23,7 +20,7 @@ const getMatches = async (req, res) => {
       idx++;
     }
 
-    query += ` ORDER BY date ASC`;
+    query += " ORDER BY date ASC";
 
     const result = await pool.query(query, values);
 
@@ -37,15 +34,12 @@ const getMatches = async (req, res) => {
         players_count: playersCount,
         spots_left: maxPlayers - playersCount,
         is_full: playersCount >= maxPlayers,
-
         is_joined: userId ? match.players.includes(userId) : false,
         is_owner: !!isOwner,
-
         can_join:
           !!userId &&
           !match.players.includes(userId) &&
           playersCount < maxPlayers,
-
         can_delete: !!isOwner && playersCount === 1,
       };
     });
@@ -61,10 +55,7 @@ const getMatches = async (req, res) => {
   }
 };
 
-/**
- * POST /api/matches
- * Crear partido
- */
+// POST /api/matches
 const createMatch = async (req, res) => {
   try {
     if (!req.user?.id) {
@@ -75,20 +66,11 @@ const createMatch = async (req, res) => {
     const userId = req.user.id;
 
     if (!date || !level || !price) {
-      return res
-        .status(400)
-        .json({ message: "Todos los campos son obligatorios" });
+      return res.status(400).json({ message: "Todos los campos son obligatorios" });
     }
 
     const levelsPermitidos = [
-      "8va",
-      "7ma",
-      "6ta",
-      "5ta",
-      "4ta",
-      "3ra",
-      "2da",
-      "1ra",
+      "8va", "7ma", "6ta", "5ta", "4ta", "3ra", "2da", "1ra"
     ];
 
     if (!levelsPermitidos.includes(level)) {
@@ -109,7 +91,7 @@ const createMatch = async (req, res) => {
       [date, level]
     );
 
-    if (existing.rows.length > 0) {
+    if (existing.rows.length) {
       return res.status(400).json({
         message: "Ya existe un partido en ese horario y categoría",
       });
@@ -117,9 +99,9 @@ const createMatch = async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO matches (date, players, level, price, created_by)
-       VALUES ($1, ARRAY[$4]::int[], $2, $3, $4)
+       VALUES ($1, ARRAY[$2]::int[], $3, $4, $2)
        RETURNING *`,
-      [date, level, price, userId]
+      [date, userId, level, price]
     );
 
     res.status(201).json({
@@ -132,17 +114,11 @@ const createMatch = async (req, res) => {
   }
 };
 
-/**
- * POST /api/matches/:id/join
- */
+// POST /api/matches/:id/join
 const joinMatch = async (req, res) => {
   try {
-    if (!req.user?.id) {
-      return res.status(401).json({ message: "No autorizado" });
-    }
-
-    const matchId = req.params.id;
     const userId = req.user.id;
+    const matchId = req.params.id;
 
     const { rows } = await pool.query(
       "SELECT * FROM matches WHERE id = $1",
@@ -181,18 +157,29 @@ const joinMatch = async (req, res) => {
   }
 };
 
-/**
- * POST /api/matches/:id/leave
- */
+// POST /api/matches/:id/leave
 const leaveMatch = async (req, res) => {
   try {
-    if (!req.user?.id) {
-      return res.status(401).json({ message: "No autorizado" });
+    const userId = Number(req.user.id);   // forzamos número
+    const matchId = Number(req.params.id); // también aseguramos número
+
+    // Primero traemos el partido
+    const { rows } = await pool.query(
+      "SELECT * FROM matches WHERE id = $1",
+      [matchId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Partido no encontrado" });
     }
 
-    const matchId = req.params.id;
-    const userId = req.user.id;
+    const match = rows[0];
 
+    if (!match.players.includes(userId)) {
+      return res.status(400).json({ message: "No estabas en el partido" });
+    }
+
+    // Ahora sí removemos al jugador
     const updated = await pool.query(
       `UPDATE matches
        SET players = array_remove(players, $1)
@@ -211,17 +198,11 @@ const leaveMatch = async (req, res) => {
   }
 };
 
-/**
- * DELETE /api/matches/:id
- */
+// DELETE /api/matches/:id
 const deleteMatch = async (req, res) => {
   try {
-    if (!req.user?.id) {
-      return res.status(401).json({ message: "No autorizado" });
-    }
-
-    const matchId = req.params.id;
     const userId = req.user.id;
+    const matchId = req.params.id;
 
     const { rows } = await pool.query(
       "SELECT * FROM matches WHERE id = $1",

@@ -19,7 +19,6 @@ const register = async (req, res) => {
   }
 
   try {
-    // 🔐 HASHEAR PASSWORD
     const hashedPassword = bcrypt.hashSync(password, 10);
 
     const result = await pool.query(
@@ -35,17 +34,11 @@ const register = async (req, res) => {
     });
 
   } catch (error) {
-    console.error(error);
-
     if (error.code === "23505") {
-      return res.status(409).json({
-        message: "El email ya está registrado",
-      });
+      return res.status(409).json({ message: "El email ya está registrado" });
     }
 
-    return res.status(500).json({
-      message: "Error interno del servidor",
-    });
+    return res.status(500).json({ message: "Error interno del servidor" });
   }
 };
 
@@ -63,7 +56,7 @@ const login = async (req, res) => {
       [email]
     );
 
-    if (result.rows.length === 0) {
+    if (!result.rows.length) {
       return res.status(401).json({ message: "Credenciales inválidas" });
     }
 
@@ -97,12 +90,8 @@ const login = async (req, res) => {
     });
 
   } catch (error) {
-    console.error(error);
     return res.status(500).json({ message: "Error del servidor" });
   }
 };
 
-module.exports = {
-  register,
-  login
-};
+module.exports = { register, login };
