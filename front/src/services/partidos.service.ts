@@ -11,21 +11,18 @@ let partidos: Partido[] = [
   },
 ];
 
-export async function getPartidos(): Promise<Partido[]> {
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(partidos), 300);
-  });
-}
+const delay = (ms = 500) =>
+  new Promise((res) => setTimeout(res, ms));
 
-export async function finalizarPartido(
-  partidoId: number
-): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      partidos = partidos.map((p) =>
-        p.id === partidoId ? { ...p, finalizado: true } : p
-      );
-      resolve();
-    }, 300);
-  });
-}
+export const getPartidos = async (): Promise<Partido[]> => {
+  await delay();
+  return partidos;
+};
+
+export const finalizarPartido = async (id: number) => {
+  await delay();
+
+  partidos = partidos.map((p) =>
+    p.id === id ? { ...p, finalizado: true } : p
+  );
+};

@@ -1,19 +1,41 @@
-import { apiFetch } from "./api";
 import { Cancha } from "../types/Cancha";
 
-// GET
+let canchas: Cancha[] = [
+  {
+    id: 1,
+    nombre: "Cancha Central",
+    rating: 4.5,
+    votos: 10,
+  },
+  {
+    id: 2,
+    nombre: "Cancha Norte",
+    rating: 4.2,
+    votos: 5,
+  },
+];
+
+const delay = (ms = 500) =>
+  new Promise((res) => setTimeout(res, ms));
+
 export const getCanchas = async (): Promise<Cancha[]> => {
-  const data = await apiFetch("/courts");
-  return data.courts;
+  await delay();
+  return canchas;
 };
 
-// POST voto
 export const votarCancha = async (
   canchaId: number,
   value: number
 ) => {
-  return apiFetch(`/courts/${canchaId}/vote`, {
-    method: "POST",
-    body: JSON.stringify({ value }),
-  });
+  await delay();
+
+  canchas = canchas.map((c) =>
+    c.id === canchaId
+      ? {
+          ...c,
+          rating: (c.rating * c.votos + value) / (c.votos + 1),
+          votos: c.votos + 1,
+        }
+      : c
+  );
 };
