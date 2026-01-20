@@ -6,6 +6,7 @@ const {
   getMatches,
   createMatch,
   joinMatch,
+  leaveMatch,
 } = require("../controllers/matches.controller");
 
 // Traer todos los partidos (público)
@@ -16,5 +17,8 @@ router.post("/", authMiddleware, createMatch);
 
 // Unirse a un partido (requiere login)
 router.post("/:id/join", authMiddleware, joinMatch);
+
+// Salir de un partido (requiere login)
+router.post("/:id/leave", authMiddleware, leaveMatch);
 
 module.exports = router;
