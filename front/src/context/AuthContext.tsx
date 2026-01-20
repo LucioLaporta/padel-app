@@ -60,10 +60,7 @@ export function AuthProvider({
   // LOGIN REAL
   // =====================
   const login = async (email: string, password: string) => {
-    const { token, user } = await loginApi({
-      email,
-      password,
-    });
+    const { token, user } = await loginApi(email, password);
 
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));

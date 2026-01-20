@@ -5,36 +5,56 @@ import { Cancha } from "../types/Cancha";
 import { Jugador } from "../types/Jugador";
 import { Partido } from "../types/Partido";
 
-import { getCanchas, votarCancha } from "../services/canchas.service";
-import { getJugadores, votarJugador } from "../services/jugadores.service";
-import { getPartidos, finalizarPartido } from "../services/partidos.service";
+// SERVICES
+import { getCanchas } from "../services/canchas.service";
+import { getJugadores } from "../services/jugadores.service";
+
+import {
+  getMatches,
+  createMatch,
+  joinMatch,
+  leaveMatch,
+  deleteMatch,
+} from "../services/matches.service";
 
 export function useHomeData() {
   const { user } = useAuth();
 
+  // =====================
+  // STATE
+  // =====================
   const [canchas, setCanchas] = useState<Cancha[]>([]);
   const [jugadores, setJugadores] = useState<Jugador[]>([]);
   const [partidos, setPartidos] = useState<Partido[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // =====================
+  // CARGA INICIAL
+  // =====================
   const cargarDatos = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const [canchasData, jugadoresData, partidosData] =
+      const [canchasData, jugadoresData, matchesResponse] =
         await Promise.all([
           getCanchas(),
           getJugadores(),
-          getPartidos(),
+          getMatches(),
         ]);
 
       setCanchas(canchasData);
       setJugadores(jugadoresData);
-      setPartidos(partidosData);
-    } catch {
-      setError("Error cargando datos");
+
+      // backend devuelve { matches: [] }
+      setPartidos(matchesResponse.matches);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Error cargando datos"
+      );
     } finally {
       setLoading(false);
     }
@@ -44,57 +64,52 @@ export function useHomeData() {
     cargarDatos();
   }, []);
 
-  const puedeVotarCancha = (canchaId: number) => {
-    if (!user) return false;
+  // =====================
+  // ACTIONS (MATCHES)
+  // =====================
 
-    return partidos.some(
-      (p) =>
-        p.canchaId === canchaId &&
-        p.finalizado &&
-        p.jugadoresIds.includes(user.id) &&
-        !p.votosCancha.includes(user.id)
-    );
-  };
-
-  const puedeVotarJugador = (jugadorId: number) => {
-    if (!user) return false;
-
-    return partidos.some(
-      (p) =>
-        p.finalizado &&
-        p.jugadoresIds.includes(user.id) &&
-        p.jugadoresIds.includes(jugadorId) &&
-        !p.votosJugador.includes(user.id)
-    );
-  };
-
-  const rateCancha = async (canchaId: number, value: number) => {
+  const crearPartido = async (payload: {
+    date: string;
+    level: string;
+    price: number;
+  }) => {
     if (!user) return;
-    await votarCancha(canchaId, value);
+    await createMatch(payload);
     cargarDatos();
   };
 
-  const rateJugador = async (jugadorId: number, value: number) => {
+  const joinPartido = async (matchId: number) => {
     if (!user) return;
-    await votarJugador(jugadorId, value);
+    await joinMatch(matchId);
     cargarDatos();
   };
 
-  const finalizar = async (id: number) => {
-    await finalizarPartido(id);
+  const leavePartido = async (matchId: number) => {
+    if (!user) return;
+    await leaveMatch(matchId);
     cargarDatos();
   };
 
+  const finalizar = async (matchId: number) => {
+    if (!user) return;
+    await deleteMatch(matchId);
+    cargarDatos();
+  };
+
+  // =====================
+  // RETURN
+  // =====================
   return {
     canchas,
     jugadores,
     partidos,
     loading,
     error,
-    puedeVotarCancha,
-    puedeVotarJugador,
-    rateCancha,
-    rateJugador,
+
+    // acciones
+    crearPartido,
+    joinPartido,
+    leavePartido,
     finalizar,
   };
 }

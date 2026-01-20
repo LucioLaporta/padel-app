@@ -1,21 +1,6 @@
 import { apiFetch } from "./api";
 
-// =====================
-// TYPES
-// =====================
-export interface LoginPayload {
-  email: string;
-  password: string;
-}
-
-export interface RegisterPayload {
-  email: string;
-  username: string;
-  password: string;
-  clase: string;
-}
-
-export interface AuthResponse {
+interface LoginResponse {
   token: string;
   user: {
     id: number;
@@ -26,24 +11,21 @@ export interface AuthResponse {
   };
 }
 
-// =====================
-// API CALLS
-// =====================
-
 export const loginApi = async (
-  payload: LoginPayload
-): Promise<AuthResponse> => {
-  return apiFetch("/auth/login", {
+  email: string,
+  password: string
+): Promise<LoginResponse> => {
+  const data = await apiFetch("/auth/login", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ email, password }),
   });
+
+  // Guardamos token
+  localStorage.setItem("token", data.token);
+
+  return data;
 };
 
-export const registerApi = async (
-  payload: RegisterPayload
-): Promise<AuthResponse> => {
-  return apiFetch("/auth/register", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export const logoutApi = () => {
+  localStorage.removeItem("token");
 };

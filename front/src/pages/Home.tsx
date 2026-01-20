@@ -42,7 +42,9 @@ export default function Home() {
     error,
     rateCancha,
     rateJugador,
-    cerrarPartido,
+    joinPartido,
+    leavePartido,
+    finalizar,
   } = useHomeData();
 
   // =====================
@@ -107,13 +109,12 @@ export default function Home() {
       <h2>🏟️ Canchas</h2>
       {canchas.map((cancha) => (
         <div key={cancha.id}>
-          <h3>{cancha.nombre}</h3>
-          <p>
-            ⭐ {cancha.rating.toFixed(1)} ({cancha.votos} votos)
-          </p>
+          <h3>{cancha.name}</h3>
+          <p>📍 {cancha.address}</p>
+          <p>💰 ${cancha.price_per_hour}</p>
 
           <StarRating
-            rating={cancha.rating}
+            rating={cancha.rating ?? 0}
             disabled={!puedeVotarCancha(cancha.id)}
             onRate={(value) =>
               rateCancha(cancha.id, value)
@@ -127,14 +128,12 @@ export default function Home() {
       <h2>👤 Jugadores</h2>
       {jugadores.map((jugador) => (
         <div key={jugador.id}>
-          <h3>{jugador.nombre}</h3>
-          <p>Categoría: {jugador.categoria}</p>
-          <p>
-            ⭐ {jugador.rating.toFixed(1)} ({jugador.votos} votos)
-          </p>
+          <h3>{jugador.username}</h3>
+          <p>Categoría: {jugador.clase}</p>
+          <p>⭐ Reputación: {jugador.reputacion}</p>
 
           <StarRating
-            rating={jugador.rating}
+            rating={jugador.reputacion}
             disabled={!puedeVotarJugador(jugador.id)}
             onRate={(value) =>
               rateJugador(jugador.id, value)
@@ -146,27 +145,15 @@ export default function Home() {
       <hr />
 
       <h2>🎾 Partidos</h2>
-      {partidos.map((partido) => {
-        const cancha = canchas.find(
-          (c) => c.id === partido.canchaId
-        );
-
-        const jugadoresPartido = jugadores.filter((j) =>
-          partido.jugadoresIds.includes(j.id)
-        );
-
-        if (!cancha) return null;
-
-        return (
-          <PartidoCard
-            key={partido.id}
-            partido={partido}
-            cancha={cancha}
-            jugadores={jugadoresPartido}
-            onFinalizar={cerrarPartido}
-          />
-        );
-      })}
+      {partidos.map((partido) => (
+        <PartidoCard
+          key={partido.id}
+          partido={partido}
+          onJoin={joinPartido}
+          onLeave={leavePartido}
+          onFinalizar={finalizar}
+        />
+      ))}
     </div>
   );
 }
