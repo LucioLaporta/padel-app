@@ -91,6 +91,7 @@ const login = async (req, res) => {
     });
 
   } catch (error) {
+    console.error("LOGIN ERROR:", error); // <-- esto te muestra el error real
     return res.status(500).json({ message: "Error del servidor" });
   }
 };
