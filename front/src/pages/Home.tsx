@@ -1,18 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import StarRating from "../components/StarRating";
 import PartidoCard from "../components/PartidoCard";
 
-import { Cancha } from "../types/Cancha";
-import { Jugador } from "../types/Jugador";
-import { Partido } from "../types/Partido";
-
-// =====================
-// SERVICES
-// =====================
-import { getCanchas, votarCancha } from "../services/canchas.service";
-import { getJugadores, votarJugador } from "../services/jugadores.service";
-import { getPartidos, finalizarPartido } from "../services/partidos.service";
+// HOOKS
+import { useHomeData } from "../hooks/useHomeData";
+import { usePermissions } from "../hooks/usePermissions";
 
 export default function Home() {
   // =====================
@@ -20,106 +13,51 @@ export default function Home() {
   // =====================
   const { user, login, logout } = useAuth();
 
-  const fakeUser = {
-    id: 1,
-    username: "nahuel",
-    category: "6ta",
-  };
+  // =====================
+  // LOGIN FORM STATE
+  // =====================
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
 
-  // =====================
-  // STATES
-  // =====================
-  const [canchas, setCanchas] = useState<Cancha[]>([]);
-  const [jugadores, setJugadores] = useState<Jugador[]>([]);
-  const [partidos, setPartidos] = useState<Partido[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // =====================
-  // CARGA DE DATOS
-  // =====================
-  const cargarDatos = async () => {
+  const handleLogin = async () => {
     try {
-      setLoading(true);
-      setError(null);
-
-      const [canchasData, jugadoresData, partidosData] =
-        await Promise.all([
-          getCanchas(),
-          getJugadores(),
-          getPartidos(),
-        ]);
-
-      setCanchas(canchasData);
-      setJugadores(jugadoresData);
-      setPartidos(partidosData);
+      setLoginError(null);
+      await login(email, password);
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Error cargando datos"
+      setLoginError(
+        err instanceof Error ? err.message : "Error al iniciar sesión"
       );
-    } finally {
-      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    cargarDatos();
-  }, []);
+  // =====================
+  // DATA + ACTIONS
+  // =====================
+  const {
+    canchas,
+    jugadores,
+    partidos,
+    loading,
+    error,
+    rateCancha,
+    rateJugador,
+    cerrarPartido,
+  } = useHomeData();
 
   // =====================
-  // REGLAS DE NEGOCIO
+  // PERMISSIONS
   // =====================
-  const puedeVotarCancha = (canchaId: number) => {
-    if (!user) return false;
-
-    return partidos.some(
-      (p) =>
-        p.canchaId === canchaId &&
-        p.finalizado &&
-        p.jugadoresIds.includes(user.id) &&
-        !p.votosCancha.includes(user.id)
-    );
-  };
-
-  const puedeVotarJugador = (jugadorId: number) => {
-    if (!user) return false;
-
-    return partidos.some(
-      (p) =>
-        p.finalizado &&
-        p.jugadoresIds.includes(user.id) &&
-        p.jugadoresIds.includes(jugadorId) &&
-        !p.votosJugador.includes(user.id)
-    );
-  };
+  const { puedeVotarCancha, puedeVotarJugador } = usePermissions({
+    user,
+    partidos,
+  });
 
   // =====================
-  // HANDLERS
+  // RENDER STATES
   // =====================
-  const handleRateCancha = async (canchaId: number, value: number) => {
-    if (!user) return;
-    await votarCancha(canchaId, value);
-    cargarDatos();
-  };
-
-  const handleRateJugador = async (jugadorId: number, value: number) => {
-    if (!user) return;
-    await votarJugador(jugadorId, value);
-    cargarDatos();
-  };
-
-  const handleFinalizarPartido = async (id: number) => {
-    await finalizarPartido(id);
-    cargarDatos();
-  };
-
-  // =====================
-  // RENDER CONTROL
-  // =====================
-  if (loading) return <p>Cargando aplicación...</p>;
-  if (error) return <p style={{ color: "red" }}>{error}</p>;
+  if (loading) return <p>Cargando...</p>;
+  if (error) return <p>{error}</p>;
 
   // =====================
   // RENDER
@@ -129,14 +67,36 @@ export default function Home() {
       <h1>🎾 Padel App</h1>
 
       {!user ? (
-        <button onClick={() => login(fakeUser)}>
-          Iniciar sesión
-        </button>
+        <div style={{ maxWidth: "300px" }}>
+          <h3>Iniciar sesión</h3>
+
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={{ width: "100%", marginBottom: "8px" }}
+          />
+
+          <input
+            type="password"
+            placeholder="Contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={{ width: "100%", marginBottom: "8px" }}
+          />
+
+          <button onClick={handleLogin}>Entrar</button>
+
+          {loginError && (
+            <p style={{ color: "red" }}>{loginError}</p>
+          )}
+        </div>
       ) : (
         <>
           <p>
             Bienvenido <strong>{user.username}</strong> –{" "}
-            {user.category}
+            {user.clase}
           </p>
           <button onClick={logout}>Cerrar sesión</button>
         </>
@@ -156,7 +116,7 @@ export default function Home() {
             rating={cancha.rating}
             disabled={!puedeVotarCancha(cancha.id)}
             onRate={(value) =>
-              handleRateCancha(cancha.id, value)
+              rateCancha(cancha.id, value)
             }
           />
         </div>
@@ -177,7 +137,7 @@ export default function Home() {
             rating={jugador.rating}
             disabled={!puedeVotarJugador(jugador.id)}
             onRate={(value) =>
-              handleRateJugador(jugador.id, value)
+              rateJugador(jugador.id, value)
             }
           />
         </div>
@@ -203,7 +163,7 @@ export default function Home() {
             partido={partido}
             cancha={cancha}
             jugadores={jugadoresPartido}
-            onFinalizar={handleFinalizarPartido}
+            onFinalizar={cerrarPartido}
           />
         );
       })}
