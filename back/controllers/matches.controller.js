@@ -63,9 +63,10 @@ const createMatch = async (req, res) => {
     }
 
     const { date, level, price } = req.body;
-    const userId = req.user.id;
+    const userId = Number(req.user.id);
 
-    if (!date || !level || !price) {
+    if (!date  !level 
+ !price) {
       return res.status(400).json({ message: "Todos los campos son obligatorios" });
     }
 
@@ -88,7 +89,7 @@ const createMatch = async (req, res) => {
 
     const existing = await pool.query(
       "SELECT id FROM matches WHERE date = $1 AND level = $2",
-      [date, level]
+      [matchDate, level]
     );
 
     if (existing.rows.length) {
@@ -98,10 +99,10 @@ const createMatch = async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO matches (date, players, level, price, created_by)
+      INSERT INTO matches (date, players, level, price, created_by)
        VALUES ($1, ARRAY[$2]::int[], $3, $4, $2)
-       RETURNING *`,
-      [date, userId, level, price]
+       RETURNING *,
+      [matchDate, userId, level, price]
     );
 
     res.status(201).json({
