@@ -22,8 +22,6 @@ app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/courts", courtsRoutes);
 app.use("/api/matches", matchesRoutes);
-
-// NUEVO: usar rutas de ratings
 app.use("/api/ratings", ratingsRoutes);
 
 // Ruta raíz

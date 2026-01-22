@@ -1,14 +1,19 @@
 const express = require("express");
 const router = express.Router();
-const { rateCourt, ratePlayer, getCourtRating, getPlayerRating } = require("../controllers/ratings.controller");
-const authMiddleware = require("../middlewares/auth"); // tu middleware de token
+const authMiddleware = require("../middlewares/auth");
+const {
+  ratePlayer,
+  getPlayerRating,
+  getAllComments,
+} = require("../controllers/ratings.controller");
 
-// Votar cancha / jugador (POST)
-router.post("/court", authMiddleware, rateCourt);
+// POST: calificar jugador
 router.post("/player", authMiddleware, ratePlayer);
 
-// Ver rating cancha / jugador (GET)
-router.get("/court/:id", getCourtRating);
+// GET: rating promedio jugador
 router.get("/player/:id", getPlayerRating);
+
+// GET: todos los comentarios (solo admins)
+router.get("/comments", authMiddleware, getAllComments);
 
 module.exports = router;
