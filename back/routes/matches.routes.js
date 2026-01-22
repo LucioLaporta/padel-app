@@ -1,22 +1,20 @@
 const express = require("express");
 const router = express.Router();
 
-// Controllers
 const {
   getMatches,
   createMatch,
   joinMatch,
   leaveMatch,
-  deleteMatch,
+  finishMatch,
 } = require("../controllers/matches.controller");
 
-// Middleware de auth (JWT)
-const auth = require("../middlewares/auth"); // asegúrate que es auth.js
+const auth = require("../middlewares/auth");
 
-router.get("/", getMatches);
+router.get("/", auth, getMatches);
 router.post("/", auth, createMatch);
 router.post("/:id/join", auth, joinMatch);
 router.post("/:id/leave", auth, leaveMatch);
-router.delete("/:id", auth, deleteMatch);
+router.post("/:id/finish", auth, finishMatch);
 
 module.exports = router;

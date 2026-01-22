@@ -6,6 +6,36 @@ const getMatches = async (req, res) => {
     const userId = req.user?.id || null;
     const { level, available } = req.query;
 
+    // 1️⃣ Marcar partidos finalizados automáticamente
+    await pool.query(`
+      UPDATE matches
+      SET status = 'FINISHED'
+      WHERE end_time < NOW()
+        AND status != 'FINISHED'
+    `);
+
+    // 2️⃣ Traer ratings hechos por el usuario (si está logueado)
+    let ratingsByMatch = {};
+
+    if (userId) {
+      const ratingsResult = await pool.query(
+        `
+        SELECT match_id, rated_user_id, stars
+        FROM match_player_ratings
+        WHERE rater_id = $1
+        `,
+        [userId]
+      );
+
+      ratingsResult.rows.forEach((r) => {
+        if (!ratingsByMatch[r.match_id]) {
+          ratingsByMatch[r.match_id] = {};
+        }
+        ratingsByMatch[r.match_id][r.rated_user_id] = r.stars;
+      });
+    }
+
+    // 3️⃣ Traer partidos
     let query = `
       SELECT *
       FROM matches
@@ -20,14 +50,27 @@ const getMatches = async (req, res) => {
       idx++;
     }
 
-    query += " ORDER BY start_time ASC";
+    query += ` ORDER BY start_time ASC`;
 
     const result = await pool.query(query, values);
 
+    // 4️⃣ Armar respuesta
     let matches = result.rows.map((match) => {
       const playersCount = match.players.length;
       const maxPlayers = 4;
       const isOwner = userId && match.created_by === userId;
+
+      let playersRatings = null;
+
+      if (userId && match.players.includes(userId)) {
+        playersRatings = {};
+        match.players.forEach((pid) => {
+          if (pid !== userId) {
+            playersRatings[pid] =
+              ratingsByMatch[match.id]?.[pid] ?? null;
+          }
+        });
+      }
 
       return {
         ...match,
@@ -42,6 +85,7 @@ const getMatches = async (req, res) => {
           playersCount < maxPlayers &&
           match.status === "OPEN",
         can_delete: !!isOwner && playersCount === 1,
+        players_ratings: playersRatings,
       };
     });
 
@@ -84,12 +128,8 @@ const createMatch = async (req, res) => {
     const start = new Date(start_time);
     const end = new Date(end_time);
 
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return res.status(400).json({ message: "Horario inválido" });
-    }
-
     if (start >= end) {
-      return res.status(400).json({ message: "El horario de inicio debe ser menor al de fin" });
+      return res.status(400).json({ message: "Horario inválido" });
     }
 
     if (start < new Date()) {
@@ -107,7 +147,7 @@ const createMatch = async (req, res) => {
       [level, start, end]
     );
 
-    if (overlap.rows.length > 0) {
+    if (overlap.rows.length) {
       return res.status(400).json({ message: "Ya existe un partido en ese horario y categoría" });
     }
 
@@ -122,12 +162,7 @@ const createMatch = async (req, res) => {
       [start, end, userId, level, price]
     );
 
-    // Mensaje más amigable con cupos restantes
-    const match = result.rows[0];
-    const spotsLeft = 4 - match.players.length;
-    const message = `Partido creado correctamente. Cupos disponibles: ${spotsLeft}`;
-
-    res.status(201).json({ message, match });
+    res.status(201).json({ match: result.rows[0] });
   } catch (error) {
     console.error("Error createMatch:", error);
     res.status(500).json({ message: "Error al crear partido" });
@@ -140,48 +175,33 @@ const joinMatch = async (req, res) => {
     const userId = Number(req.user.id);
     const matchId = Number(req.params.id);
 
-    // Traemos el partido
     const { rows } = await pool.query("SELECT * FROM matches WHERE id = $1", [matchId]);
     if (!rows.length) return res.status(404).json({ message: "Partido no encontrado" });
 
     const match = rows[0];
 
-    // Validaciones
     if (match.players.includes(userId)) {
       return res.status(400).json({ message: "Ya estás en el partido" });
     }
 
     if (match.status !== "OPEN") {
-      return res.status(400).json({ message: "El partido ya está lleno" });
+      return res.status(400).json({ message: "El partido no está abierto" });
     }
 
-    if (match.players.length >= 4) {
-      return res.status(400).json({ message: "El partido ya está lleno" });
-    }
-
-    // Determinar nuevo estado
     const newStatus = match.players.length + 1 >= 4 ? "FULL" : "OPEN";
 
-    // Actualizar partido
     const updated = await pool.query(
-      `UPDATE matches
-       SET players = array_append(players, $1),
-           status = $3
-       WHERE id = $2
-       RETURNING *`,
+      `
+      UPDATE matches
+      SET players = array_append(players, $1),
+          status = $3
+      WHERE id = $2
+      RETURNING *
+      `,
       [userId, matchId, newStatus]
     );
 
-    const updatedMatch = updated.rows[0];
-    const spotsLeft = 4 - updatedMatch.players.length;
-
-    // Mensaje más amigable con cupos restantes
-    const message =
-      newStatus === "FULL"
-        ? "Te uniste al partido correctamente. El partido ya está lleno."
-        : `Te uniste al partido correctamente. Cupos disponibles: ${spotsLeft}`;
-
-    res.json({ message, match: updatedMatch });
+    res.json({ match: updated.rows[0] });
   } catch (error) {
     console.error("Error joinMatch:", error);
     res.status(500).json({ message: "Error al unirse" });
@@ -194,44 +214,28 @@ const leaveMatch = async (req, res) => {
     const userId = Number(req.user.id);
     const matchId = Number(req.params.id);
 
-    // Traemos el partido
     const { rows } = await pool.query("SELECT * FROM matches WHERE id = $1", [matchId]);
     if (!rows.length) return res.status(404).json({ message: "Partido no encontrado" });
 
-    const match = rows[0];
-
-    if (!match.players.includes(userId)) {
-      return res.status(400).json({ message: "No estabas en el partido" });
-    }
-
-    // Determinar nuevo estado
-    const newStatus = match.players.length - 1 < 4 ? "OPEN" : match.status;
-
-    // Actualizar partido
-    const updated = await pool.query(
-      `UPDATE matches
-       SET players = array_remove(players, $1),
-           status = $3
-       WHERE id = $2
-       RETURNING *`,
-      [userId, matchId, newStatus]
+    await pool.query(
+      `
+      UPDATE matches
+      SET players = array_remove(players, $1),
+          status = 'OPEN'
+      WHERE id = $2
+      `,
+      [userId, matchId]
     );
 
-    // Mensaje más amigable según estado
-    const message =
-      newStatus === "OPEN"
-        ? "Saliste del partido correctamente. Ahora hay cupos disponibles."
-        : "Saliste del partido correctamente.";
-
-    res.json({ message, match: updated.rows[0] });
+    res.json({ message: "Saliste del partido" });
   } catch (error) {
     console.error("Error leaveMatch:", error);
     res.status(500).json({ message: "Error al salir" });
   }
 };
 
-// DELETE /api/matches/:id
-const deleteMatch = async (req, res) => {
+// POST /api/matches/:id/finish
+const finishMatch = async (req, res) => {
   try {
     const userId = Number(req.user.id);
     const matchId = Number(req.params.id);
@@ -239,19 +243,19 @@ const deleteMatch = async (req, res) => {
     const { rows } = await pool.query("SELECT * FROM matches WHERE id = $1", [matchId]);
     if (!rows.length) return res.status(404).json({ message: "Partido no encontrado" });
 
-    const match = rows[0];
-
-    if (match.created_by !== userId) return res.status(403).json({ message: "No sos el creador" });
-
-    if (match.players.length > 1) {
-      return res.status(400).json({ message: "No podés borrar el partido si hay otros jugadores" });
+    if (rows[0].created_by !== userId) {
+      return res.status(403).json({ message: "No sos el creador del partido" });
     }
 
-    await pool.query("DELETE FROM matches WHERE id = $1", [matchId]);
-    res.json({ message: "Partido eliminado correctamente" });
+    await pool.query(
+      "UPDATE matches SET status = 'FINISHED' WHERE id = $1",
+      [matchId]
+    );
+
+    res.json({ message: "Partido finalizado correctamente" });
   } catch (error) {
-    console.error("Error deleteMatch:", error);
-    res.status(500).json({ message: "Error al borrar" });
+    console.error("Error finishMatch:", error);
+    res.status(500).json({ message: "Error al finalizar partido" });
   }
 };
 
@@ -260,5 +264,5 @@ module.exports = {
   createMatch,
   joinMatch,
   leaveMatch,
-  deleteMatch,
+  finishMatch,
 };

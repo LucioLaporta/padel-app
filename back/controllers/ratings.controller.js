@@ -1,89 +1,120 @@
 const pool = require("../config/db");
 
-// POST /api/ratings/court
-const rateCourt = async (req, res) => {
-  try {
-    const userId = req.user?.id;
-    const { court_id, stars, comment } = req.body;
-
-    if (!userId) return res.status(401).json({ message: "No autorizado" });
-    if (!court_id || !stars) return res.status(400).json({ message: "Faltan campos" });
-    if (stars < 1 || stars > 5) return res.status(400).json({ message: "Stars inválido" });
-
-    const result = await pool.query(
-      `INSERT INTO court_ratings (court_id, user_id, stars, comment)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (court_id, user_id)
-       DO UPDATE SET stars = $3, comment = $4, created_at = NOW()
-       RETURNING *`,
-      [court_id, userId, stars, comment || null]
-    );
-
-    res.json({ message: "Voto registrado correctamente", rating: result.rows[0] });
-  } catch (error) {
-    console.error("Error rateCourt:", error);
-    res.status(500).json({ message: "Error al registrar voto" });
-  }
-};
-
 // POST /api/ratings/player
 const ratePlayer = async (req, res) => {
   try {
-    const voterId = req.user?.id;
-    const { player_id, stars, comment } = req.body;
+    const raterId = req.user.id;
+    const { match_id, rated_user_id, stars, comment } = req.body;
 
-    if (!voterId) return res.status(401).json({ message: "No autorizado" });
-    if (!player_id || !stars) return res.status(400).json({ message: "Faltan campos" });
-    if (stars < 1 || stars > 5) return res.status(400).json({ message: "Stars inválido" });
+    // 1️⃣ Validar campos
+    if (!match_id || !rated_user_id || !stars) {
+      return res.status(400).json({ message: "Faltan campos" });
+    }
 
-    const result = await pool.query(
-      `INSERT INTO player_ratings (player_id, voter_id, stars, comment)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (player_id, voter_id)
-       DO UPDATE SET stars = $3, comment = $4, created_at = NOW()
-       RETURNING *`,
-      [player_id, voterId, stars, comment || null]
+    // 2️⃣ Traer partido
+    const matchResult = await pool.query(
+      "SELECT * FROM matches WHERE id = $1",
+      [match_id]
     );
 
-    res.json({ message: "Voto registrado correctamente", rating: result.rows[0] });
+    if (!matchResult.rows.length) {
+      return res.status(404).json({ message: "Partido no encontrado" });
+    }
+
+    const match = matchResult.rows[0];
+
+    // 3️⃣ Debe estar finalizado
+    if (match.status !== "FINISHED") {
+      return res.status(400).json({ message: "El partido no está finalizado" });
+    }
+
+    // 4️⃣ Ambos deben haber jugado
+    if (
+      !match.players.includes(raterId) ||
+      !match.players.includes(rated_user_id)
+    ) {
+      return res.status(403).json({ message: "No participaste de este partido" });
+    }
+
+    // 5️⃣ No calificarse a uno mismo
+    if (raterId === rated_user_id) {
+      return res.status(400).json({ message: "No podés calificarte a vos mismo" });
+    }
+
+    // 6️⃣ Chequear si ya calificó
+    const existing = await pool.query(
+      "SELECT * FROM match_player_ratings WHERE match_id=$1 AND rater_id=$2 AND rated_user_id=$3",
+      [match_id, raterId, rated_user_id]
+    );
+
+    if (existing.rows.length) {
+      return res.status(400).json({ message: "Ya calificaste a este jugador" });
+    }
+
+    // 7️⃣ Insertar rating
+    await pool.query(
+      `INSERT INTO match_player_ratings
+        (match_id, rater_id, rated_user_id, stars, comment)
+      VALUES ($1, $2, $3, $4, $5)`,
+      [match_id, raterId, rated_user_id, stars, comment]
+    );
+
+    res.status(201).json({ message: "Jugador calificado correctamente" });
   } catch (error) {
     console.error("Error ratePlayer:", error);
-    res.status(500).json({ message: "Error al registrar voto" });
-  }
-};
-
-// GET /api/ratings/court/:id
-const getCourtRating = async (req, res) => {
-  try {
-    const courtId = req.params.id;
-    const { rows } = await pool.query(
-      `SELECT COUNT(*) as votes, AVG(stars)::numeric(10,2) as average
-       FROM court_ratings
-       WHERE court_id = $1`,
-      [courtId]
-    );
-    res.json({ court_id: courtId, votes: Number(rows[0].votes), average: Number(rows[0].average || 0) });
-  } catch (error) {
-    console.error("Error getCourtRating:", error);
-    res.status(500).json({ message: "Error al obtener rating" });
+    res.status(500).json({ message: "Error al calificar jugador" });
   }
 };
 
 // GET /api/ratings/player/:id
 const getPlayerRating = async (req, res) => {
   try {
-    const playerId = req.params.id;
-    const { rows } = await pool.query(
-      `SELECT COUNT(*) as votes, AVG(stars)::numeric(10,2) as average
-       FROM player_ratings
-       WHERE player_id = $1`,
+    const playerId = Number(req.params.id);
+
+    const result = await pool.query(
+      `SELECT rated_user_id AS player_id,
+              ROUND(AVG(stars),2) AS average_rating,
+              COUNT(*) AS total_ratings
+       FROM match_player_ratings
+       WHERE rated_user_id=$1
+       GROUP BY rated_user_id`,
       [playerId]
     );
-    res.json({ player_id: playerId, votes: Number(rows[0].votes), average: Number(rows[0].average || 0) });
+
+    if (!result.rows.length) {
+      return res.json({
+        player_id: playerId,
+        average_rating: null,
+        total_ratings: 0,
+      });
+    }
+
+    res.json(result.rows[0]);
   } catch (error) {
     console.error("Error getPlayerRating:", error);
-    res.status(500).json({ message: "Error al obtener rating" });
+    res.status(500).json({ message: "Error al obtener rating del jugador" });
   }
 };
 
-module.exports = { rateCourt, ratePlayer, getCourtRating, getPlayerRating };
+// GET /api/ratings/comments (solo para admins)
+const getAllComments = async (req, res) => {
+  try {
+    const isAdmin = req.user?.is_admin;
+    if (!isAdmin) return res.status(403).json({ message: "No autorizado" });
+
+    const result = await pool.query(
+      `SELECT * FROM match_player_ratings ORDER BY created_at DESC`
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error getAllComments:", error);
+    res.status(500).json({ message: "Error al obtener comentarios" });
+  }
+};
+
+module.exports = {
+  ratePlayer,
+  getPlayerRating,
+  getAllComments,
+};
