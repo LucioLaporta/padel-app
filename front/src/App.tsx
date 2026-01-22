@@ -1,6 +1,5 @@
-import Home from "./pages/Home"; 
-function App() { 
-  return <Home />; 
-} 
+import Home from "./pages/Home";
 
-export default App;
+export default function App() {
+  return <Home />;
+}

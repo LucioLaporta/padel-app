@@ -1,27 +1,18 @@
 import { apiFetch } from "./api";
 import { Partido } from "../types/Partido";
 
-// =====================
-// GET /api/matches
-// =====================
+// GET partidos
 export const getMatches = async (): Promise<Partido[]> => {
   const data = await apiFetch("/matches");
   return data.matches;
 };
 
-// =====================
-// POST /api/matches
 // Crear partido
-// =====================
-interface CreateMatchPayload {
-  date: string;   // ISO string
-  level: string;  // "6ta", "5ta", etc
+export const createMatch = async (payload: {
+  date: string;
+  level: string;
   price: number;
-}
-
-export const createMatch = async (
-  payload: CreateMatchPayload
-): Promise<Partido> => {
+}) => {
   const data = await apiFetch("/matches", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -30,33 +21,27 @@ export const createMatch = async (
   return data.match;
 };
 
-// =====================
-// POST /api/matches/:id/join
-// =====================
-export const joinMatch = async (matchId: number): Promise<Partido> => {
-  const data = await apiFetch(`/matches/${matchId}/join`, {
+// Join
+export const joinMatch = async (id: number) => {
+  const data = await apiFetch(`/matches/${id}/join`, {
     method: "POST",
   });
 
   return data.match;
 };
 
-// =====================
-// POST /api/matches/:id/leave
-// =====================
-export const leaveMatch = async (matchId: number): Promise<Partido> => {
-  const data = await apiFetch(`/matches/${matchId}/leave`, {
+// Leave
+export const leaveMatch = async (id: number) => {
+  const data = await apiFetch(`/matches/${id}/leave`, {
     method: "POST",
   });
 
   return data.match;
 };
 
-// =====================
-// DELETE /api/matches/:id
-// =====================
-export const deleteMatch = async (matchId: number): Promise<void> => {
-  await apiFetch(`/matches/${matchId}`, {
+// Delete
+export const deleteMatch = async (id: number) => {
+  await apiFetch(`/matches/${id}`, {
     method: "DELETE",
   });
 };
