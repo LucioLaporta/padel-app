@@ -22,10 +22,10 @@ const register = async (req, res) => {
     const hashedPassword = bcrypt.hashSync(password, 10);
 
     const result = await pool.query(
-      `INSERT INTO users (email, username, password, clase, reputacion)
-       VALUES ($1, $2, $3, $4, 5)
-       RETURNING id, email, username, clase, reputacion`,
-      [email, username, hashedPassword, clase]
+      `INSERT INTO users (email, username, password, clase, reputacion, role)
+       VALUES ($1, $2, $3, $4, 5, $5)
+       RETURNING id, email, username, clase, reputacion, role`,
+      [email, username, hashedPassword, clase, role || "USER"]
     );
 
     return res.status(201).json({
