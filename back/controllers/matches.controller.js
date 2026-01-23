@@ -35,11 +35,18 @@ const getMatches = async (req, res) => {
       });
     }
 
-    // 3️⃣ Traer partidos
+    // 3️⃣ Traer partidos, excluyendo bloques de cancha
     let query = `
       SELECT *
-      FROM matches
+      FROM matches m
       WHERE start_time >= NOW()
+        AND NOT EXISTS (
+          SELECT 1
+          FROM court_blocks cb
+          WHERE cb.court_id = m.court_id
+            AND cb.start_time < m.end_time
+            AND cb.end_time > m.start_time
+        )
     `;
     const values = [];
     let idx = 1;
@@ -89,6 +96,7 @@ const getMatches = async (req, res) => {
       };
     });
 
+    // Filtrar solo los disponibles si se pidió
     if (available === "true") {
       matches = matches.filter((m) => !m.is_full);
     }
@@ -100,6 +108,7 @@ const getMatches = async (req, res) => {
   }
 };
 
+
 // POST /api/matches
 const createMatch = async (req, res) => {
   try {
@@ -108,9 +117,9 @@ const createMatch = async (req, res) => {
     }
 
     const userId = Number(req.user.id);
-    const { start_time, end_time, level, price } = req.body;
+    const { start_time, end_time, level, price, court_id } = req.body;
 
-    if (!start_time || !end_time || !level || !price) {
+    if (!start_time || !end_time || !level || !price || !court_id) {
       return res.status(400).json({ message: "Todos los campos son obligatorios" });
     }
 
@@ -136,6 +145,7 @@ const createMatch = async (req, res) => {
       return res.status(400).json({ message: "No se puede crear un partido en el pasado" });
     }
 
+    // overlap con otros partidos
     const overlap = await pool.query(
       `
       SELECT id
@@ -151,15 +161,27 @@ const createMatch = async (req, res) => {
       return res.status(400).json({ message: "Ya existe un partido en ese horario y categoría" });
     }
 
+    // verificar bloqueos de la cancha
+    const blockOverlap = await pool.query(
+      `SELECT id FROM court_blocks
+       WHERE court_id = $1 AND start_time < $3 AND end_time > $2`,
+      [court_id, start, end]
+    );
+
+    if (blockOverlap.rows.length) {
+      return res.status(400).json({ message: "El horario coincide con un bloqueo de la cancha" });
+    }
+
+    // INSERT
     const result = await pool.query(
       `
       INSERT INTO matches
-        (start_time, end_time, players, level, price, created_by, status)
+        (start_time, end_time, players, level, price, created_by, status, court_id)
       VALUES
-        ($1, $2, ARRAY[$3]::int[], $4, $5, $3, 'OPEN')
+        ($1, $2, ARRAY[$3]::int[], $4, $5, $3, 'OPEN', $6)
       RETURNING *
       `,
-      [start, end, userId, level, price]
+      [start, end, userId, level, price, court_id]
     );
 
     res.status(201).json({ match: result.rows[0] });

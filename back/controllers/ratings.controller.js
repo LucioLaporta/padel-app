@@ -29,10 +29,7 @@ const ratePlayer = async (req, res) => {
     }
 
     // 4️⃣ Ambos deben haber jugado
-    if (
-      !match.players.includes(raterId) ||
-      !match.players.includes(rated_user_id)
-    ) {
+    if (!match.players.includes(raterId) || !match.players.includes(rated_user_id)) {
       return res.status(403).json({ message: "No participaste de este partido" });
     }
 
@@ -55,8 +52,8 @@ const ratePlayer = async (req, res) => {
     await pool.query(
       `INSERT INTO match_player_ratings
         (match_id, rater_id, rated_user_id, stars, comment)
-      VALUES ($1, $2, $3, $4, $5)`,
-      [match_id, raterId, rated_user_id, stars, comment]
+       VALUES ($1, $2, $3, $4, $5)`,
+      [match_id, raterId, rated_user_id, stars, comment || null]
     );
 
     res.status(201).json({ message: "Jugador calificado correctamente" });
@@ -73,7 +70,7 @@ const getPlayerRating = async (req, res) => {
 
     const result = await pool.query(
       `SELECT rated_user_id AS player_id,
-              ROUND(AVG(stars),2) AS average_rating,
+              ROUND(AVG(stars), 2) AS average_rating,
               COUNT(*) AS total_ratings
        FROM match_player_ratings
        WHERE rated_user_id=$1
@@ -96,7 +93,7 @@ const getPlayerRating = async (req, res) => {
   }
 };
 
-// GET /api/ratings/comments (solo para admins)
+// GET /api/ratings/comments (solo admins)
 const getAllComments = async (req, res) => {
   try {
     const isAdmin = req.user?.is_admin;

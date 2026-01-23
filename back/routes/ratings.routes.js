@@ -11,7 +11,7 @@ const {
 router.post("/player", authMiddleware, ratePlayer);
 
 // GET: rating promedio jugador
-router.get("/player/:id", getPlayerRating);
+router.get("/player/:id", authMiddleware, getPlayerRating);
 
 // GET: todos los comentarios (solo admins)
 router.get("/comments", authMiddleware, getAllComments);
