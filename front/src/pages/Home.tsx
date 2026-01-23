@@ -3,12 +3,28 @@ import { useAuth } from "../context/AuthContext";
 import StarRating from "../components/StarRating";
 import { Cancha } from "../types/Cancha";
 import { Jugador } from "../types/Jugador";
+import { ratePlayer } from "../services/rating.service";
+
+// MATCHES
+import { useHomeData } from "../hooks/useHomeData";
+import MatchCard from "../components/MatchCard";
+import CreateMatchForm from "../components/CreateMatchForm";
 
 export default function Home() {
   const { user, logout } = useAuth();
 
-  // ================= MOCK DATA =================
-  const [canchas, setCanchas] = useState<Cancha[]>([
+  // MATCHES REAL DATA
+  const {
+    partidos = [],
+    loading,
+    crearPartido,
+    joinPartido,
+    leavePartido,
+    finalizar,
+  } = useHomeData();
+
+  // MOCK DATA
+  const [canchas] = useState<Cancha[]>([
     { id: 1, nombre: "Cancha Central", rating: 4.2, votos: 10 },
     { id: 2, nombre: "Cancha Norte", rating: 3.8, votos: 6 },
     { id: 3, nombre: "Cancha Sur", rating: 4.6, votos: 21 },
@@ -20,44 +36,36 @@ export default function Home() {
     { id: 3, nombre: "Lucas Gómez", categoria: "7ma", rating: 4.8, votos: 20 },
   ]);
 
-  // ================= VOTAR CANCHA =================
-  const rateCancha = (id: number, stars: number) => {
-    setCanchas((prev) =>
-      prev.map((c) =>
-        c.id === id
-          ? {
-              ...c,
-              rating: (c.rating * c.votos + stars) / (c.votos + 1),
-              votos: c.votos + 1,
-            }
-          : c
-      )
-    );
+  // RATE PLAYER
+  const handleRateJugador = async (playerId: number, stars: number) => {
+    if (!user) return alert("Tenés que estar logueado");
+
+    try {
+      await ratePlayer(1, playerId, stars); // matchId mock = 1
+
+      setJugadores((prev) =>
+        prev.map((j) =>
+          j.id === playerId
+            ? {
+                ...j,
+                rating: (j.rating * j.votos + stars) / (j.votos + 1),
+                votos: j.votos + 1,
+              }
+            : j
+        )
+      );
+    } catch (err) {
+      alert("No podés votar (quizás no jugaste o ya votaste)");
+      console.error(err);
+    }
   };
 
-  // ================= VOTAR JUGADOR =================
-  const rateJugador = (id: number, stars: number) => {
-    setJugadores((prev) =>
-      prev.map((j) =>
-        j.id === id
-          ? {
-              ...j,
-              rating: (j.rating * j.votos + stars) / (j.votos + 1),
-              votos: j.votos + 1,
-            }
-          : j
-      )
-    );
-  };
-
-  // ================= UI =================
   return (
-    <div style={{ padding: "20px", fontFamily: "Arial", color: "white" }}>
+    <div style={{ padding: 20, fontFamily: "Arial", color: "white" }}>
       <h1>🎾 Padel App</h1>
 
-      {/* LOGIN INFO */}
       {!user ? (
-        <p style={{ color: "orange" }}>⚠ No logueado (usar pantalla login)</p>
+        <p style={{ color: "orange" }}>⚠ No logueado</p>
       ) : (
         <>
           <p>
@@ -69,50 +77,46 @@ export default function Home() {
 
       <hr />
 
-      {/* CANCHAS */}
-      <h2>🏟️ Canchas</h2>
-      {canchas.map((c) => (
-        <div
-          key={c.id}
-          style={{
-            border: "1px solid #444",
-            padding: 10,
-            marginBottom: 10,
-            borderRadius: 8,
-          }}
-        >
-          <h3>{c.nombre}</h3>
-          <p>
-            ⭐ {c.rating.toFixed(1)} ({c.votos} votos)
-          </p>
+      {user && (
+        <>
+          <h2>➕ Crear Partido</h2>
+          <CreateMatchForm onCreate={crearPartido} />
+          <hr />
+        </>
+      )}
 
-          <StarRating rating={c.rating} onRate={(v) => rateCancha(c.id, v)} />
-        </div>
+      <h2>🎾 Partidos</h2>
+      {loading && <p>Cargando...</p>}
+
+      {partidos.map((p) => (
+        <MatchCard
+          key={p.id}
+          match={p}
+          onJoin={joinPartido}
+          onLeave={leavePartido}
+          onFinish={finalizar}
+        />
       ))}
 
       <hr />
 
-      {/* JUGADORES */}
       <h2>👤 Jugadores</h2>
       {jugadores.map((j) => (
-        <div
-          key={j.id}
-          style={{
-            border: "1px solid #555",
-            padding: 10,
-            marginBottom: 10,
-            borderRadius: 8,
-          }}
-        >
+        <div key={j.id} style={cardStyle}>
           <h3>{j.nombre}</h3>
           <p>Categoría: {j.categoria}</p>
-          <p>
-            ⭐ {j.rating.toFixed(1)} ({j.votos} votos)
-          </p>
+          <p>⭐ {j.rating.toFixed(1)} ({j.votos} votos)</p>
 
-          <StarRating rating={j.rating} onRate={(v) => rateJugador(j.id, v)} />
+          <StarRating rating={j.rating} onRate={(v) => handleRateJugador(j.id, v)} />
         </div>
       ))}
     </div>
   );
 }
+
+const cardStyle = {
+  border: "1px solid #444",
+  padding: 10,
+  marginBottom: 10,
+  borderRadius: 8,
+};

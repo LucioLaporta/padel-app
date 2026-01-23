@@ -1,28 +1,40 @@
 import { useState } from "react";
 
 type Props = {
-  onCreate: (data: { date: string; level: string; price: number }) => void;
+  onCreate: (data: {
+    start_time: string;
+    end_time: string;
+    level: string;
+    price: number;
+  }) => void;
 };
 
 export default function CreateMatchForm({ onCreate }: Props) {
-  const [date, setDate] = useState("");
+  const [start, setStart] = useState("");
+  const [end, setEnd] = useState("");
   const [level, setLevel] = useState("6ta");
   const [price, setPrice] = useState(1000);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onCreate({ date, level, price });
+
+    onCreate({
+      start_time: start,
+      end_time: end,
+      level,
+      price,
+    });
   };
 
   return (
     <form onSubmit={handleSubmit} style={{ border: "1px solid #444", padding: 10 }}>
       <h3>Crear Partido</h3>
 
-      <input
-        type="datetime-local"
-        value={date}
-        onChange={(e) => setDate(e.target.value)}
-      />
+      <label>Inicio:</label>
+      <input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} />
+
+      <label>Fin:</label>
+      <input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} />
 
       <select value={level} onChange={(e) => setLevel(e.target.value)}>
         <option>8va</option>
@@ -35,11 +47,7 @@ export default function CreateMatchForm({ onCreate }: Props) {
         <option>1ra</option>
       </select>
 
-      <input
-        type="number"
-        value={price}
-        onChange={(e) => setPrice(Number(e.target.value))}
-      />
+      <input type="number" value={price} onChange={(e) => setPrice(Number(e.target.value))} />
 
       <button type="submit">Crear</button>
     </form>

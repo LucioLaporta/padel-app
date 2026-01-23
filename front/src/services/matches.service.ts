@@ -1,15 +1,20 @@
 import { apiFetch } from "./api";
 import { Partido } from "../types/Partido";
 
-// GET partidos
+// =====================
+// GET PARTIDOS
+// =====================
 export const getMatches = async (): Promise<Partido[]> => {
   const data = await apiFetch("/matches");
   return data.matches;
 };
 
-// Crear partido
+// =====================
+// CREAR PARTIDO
+// =====================
 export const createMatch = async (payload: {
-  date: string;
+  start_time: string;
+  end_time: string;
   level: string;
   price: number;
 }) => {
@@ -21,7 +26,9 @@ export const createMatch = async (payload: {
   return data.match;
 };
 
-// Join
+// =====================
+// JOIN MATCH
+// =====================
 export const joinMatch = async (id: number) => {
   const data = await apiFetch(`/matches/${id}/join`, {
     method: "POST",
@@ -30,7 +37,9 @@ export const joinMatch = async (id: number) => {
   return data.match;
 };
 
-// Leave
+// =====================
+// LEAVE MATCH
+// =====================
 export const leaveMatch = async (id: number) => {
   const data = await apiFetch(`/matches/${id}/leave`, {
     method: "POST",
@@ -39,9 +48,11 @@ export const leaveMatch = async (id: number) => {
   return data.match;
 };
 
-// Delete
-export const deleteMatch = async (id: number) => {
-  await apiFetch(`/matches/${id}`, {
-    method: "DELETE",
+// =====================
+// FINISH MATCH
+// =====================
+export const finishMatch = async (id: number) => {
+  return apiFetch(`/matches/${id}/finish`, {
+    method: "POST",
   });
 };

@@ -1,31 +1,10 @@
 import { apiFetch } from "./api";
 
 // =====================
-// CANCHAS
-// =====================
-export const rateCourt = async (
-  courtId: number,
-  stars: number,
-  comment?: string
-) => {
-  return apiFetch("/ratings/court", {
-    method: "POST",
-    body: JSON.stringify({
-      court_id: courtId,
-      stars,
-      comment,
-    }),
-  });
-};
-
-export const getCourtRating = async (courtId: number) => {
-  return apiFetch(`/ratings/court/${courtId}`);
-};
-
-// =====================
-// JUGADORES
+// PLAYER RATINGS
 // =====================
 export const ratePlayer = async (
+  matchId: number,
   playerId: number,
   stars: number,
   comment?: string
@@ -33,7 +12,8 @@ export const ratePlayer = async (
   return apiFetch("/ratings/player", {
     method: "POST",
     body: JSON.stringify({
-      player_id: playerId,
+      match_id: matchId,
+      rated_user_id: playerId,
       stars,
       comment,
     }),

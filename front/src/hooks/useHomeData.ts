@@ -14,15 +14,12 @@ import {
   createMatch,
   joinMatch,
   leaveMatch,
-  deleteMatch,
+  finishMatch, // ✅ CAMBIADO
 } from "../services/matches.service";
 
 export function useHomeData() {
   const { user } = useAuth();
 
-  // =====================
-  // STATE
-  // =====================
   const [canchas, setCanchas] = useState<Cancha[]>([]);
   const [jugadores, setJugadores] = useState<Jugador[]>([]);
   const [partidos, setPartidos] = useState<Partido[]>([]);
@@ -30,31 +27,24 @@ export function useHomeData() {
   const [error, setError] = useState<string | null>(null);
 
   // =====================
-  // CARGA INICIAL
+  // LOAD DATA
   // =====================
   const cargarDatos = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const [canchasData, jugadoresData, matchesResponse] =
-        await Promise.all([
-          getCanchas(),
-          getJugadores(),
-          getMatches(),
-        ]);
+      const [canchasData, jugadoresData, matchesData] = await Promise.all([
+        getCanchas(),
+        getJugadores(),
+        getMatches(),
+      ]);
 
       setCanchas(canchasData);
       setJugadores(jugadoresData);
-
-      // backend devuelve { matches: [] }
-      setPartidos(matchesResponse.matches);
+      setPartidos(matchesData);
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Error cargando datos"
-      );
+      setError(err instanceof Error ? err.message : "Error cargando datos");
     } finally {
       setLoading(false);
     }
@@ -65,11 +55,12 @@ export function useHomeData() {
   }, []);
 
   // =====================
-  // ACTIONS (MATCHES)
+  // ACTIONS
   // =====================
 
   const crearPartido = async (payload: {
-    date: string;
+    start_time: string;
+    end_time: string;
     level: string;
     price: number;
   }) => {
@@ -90,15 +81,12 @@ export function useHomeData() {
     cargarDatos();
   };
 
-  const finalizar = async (matchId: number) => {
+  const finalizarPartido = async (matchId: number) => {
     if (!user) return;
-    await deleteMatch(matchId);
+    await finishMatch(matchId);
     cargarDatos();
   };
 
-  // =====================
-  // RETURN
-  // =====================
   return {
     canchas,
     jugadores,
@@ -106,10 +94,9 @@ export function useHomeData() {
     loading,
     error,
 
-    // acciones
     crearPartido,
     joinPartido,
     leavePartido,
-    finalizar,
+    finalizarPartido,
   };
 }
