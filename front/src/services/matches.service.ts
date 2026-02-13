@@ -2,12 +2,10 @@ import { apiFetch } from "./api";
 import { Partido } from "../types/Partido";
 
 // =====================
-// GET MATCHES POR CANCHA
+// GET MATCHES (TODOS)
 // =====================
-export const getMatchesByCourt = async (
-  courtId: number
-): Promise<Partido[]> => {
-  const data = await apiFetch(`/courts/${courtId}/matches`);
+export const getMatches = async (): Promise<Partido[]> => {
+  const data = await apiFetch("/matches");
   return data.matches;
 };
 
@@ -33,22 +31,18 @@ export const createMatch = async (payload: {
 // JOIN MATCH
 // =====================
 export const joinMatch = async (id: number) => {
-  const data = await apiFetch(`/matches/${id}/join`, {
+  return apiFetch(`/matches/${id}/join`, {
     method: "POST",
   });
-
-  return data.match;
 };
 
 // =====================
 // LEAVE MATCH
 // =====================
 export const leaveMatch = async (id: number) => {
-  const data = await apiFetch(`/matches/${id}/leave`, {
+  return apiFetch(`/matches/${id}/leave`, {
     method: "POST",
   });
-
-  return data.match;
 };
 
 // =====================

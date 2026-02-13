@@ -11,7 +11,7 @@ import { getCanchas } from "../services/canchas.service";
 import { getJugadores } from "../services/jugadores.service";
 
 import {
-  getMatchesByCourt,
+  getMatches,
   createMatch,
   joinMatch,
   leaveMatch,
@@ -36,22 +36,27 @@ export function useHomeData() {
       setLoading(true);
       setError(null);
 
-      const [canchasData, jugadoresData] = await Promise.all([
+      const [canchasData, jugadoresData, matchesData] = await Promise.all([
         getCanchas(),
         getJugadores(),
+        getMatches(),
       ]);
 
       setCanchas(canchasData);
       setJugadores(jugadoresData);
 
-      // 🔥 Traer partidos SOLO si hay cancha seleccionada
+      // 🔥 Filtrar por cancha seleccionada desde el front
       if (selectedCourt) {
-        const matchesData = await getMatchesByCourt(selectedCourt.id);
-        setPartidos(matchesData);
+        const filtered = matchesData.filter(
+          (m: any) => m.court_id === selectedCourt.id
+        );
+        setPartidos(filtered);
       } else {
         setPartidos([]);
       }
+
     } catch (err) {
+      console.error("Error cargando datos:", err);
       setError(err instanceof Error ? err.message : "Error cargando datos");
     } finally {
       setLoading(false);

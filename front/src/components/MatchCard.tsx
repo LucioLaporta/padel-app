@@ -24,9 +24,42 @@ export default function MatchCard({ match, onJoin, onLeave, onFinish }: Props) {
     }
   };
 
+  // 🎨 COLOR SEGÚN ESTADO
+  const getStatusColor = () => {
+    if (match.status === "FINISHED") return "#ff5252";
+    if (match.is_full) return "#ff9100";
+    return "#00e676";
+  };
+
+  const getStatusText = () => {
+    if (match.status === "FINISHED") return "FINALIZADO";
+    if (match.is_full) return "COMPLETO";
+    return "ABIERTO";
+  };
+
   return (
-    <div style={{ border: "1px solid white", padding: 10, marginBottom: 10 }}>
+    <div
+      style={{
+        border: "1px solid #444",
+        padding: 12,
+        marginBottom: 12,
+        borderRadius: 10,
+        background: "#1e1e1e",
+      }}
+    >
       <h3>🎾 Partido #{match.id}</h3>
+
+      {/* ESTADO VISUAL */}
+      <p style={{ color: getStatusColor(), fontWeight: "bold" }}>
+        {getStatusText()}
+      </p>
+
+      {/* SI ESTÁS DENTRO */}
+      {match.is_joined && match.status !== "FINISHED" && (
+        <p style={{ color: "#00e676", fontWeight: "bold" }}>
+          Estás dentro de este partido
+        </p>
+      )}
 
       <p>Inicio: {new Date(match.start_time).toLocaleString()}</p>
       <p>Fin: {new Date(match.end_time).toLocaleString()}</p>
@@ -38,17 +71,33 @@ export default function MatchCard({ match, onJoin, onLeave, onFinish }: Props) {
       <p>Cupos libres: {match.spots_left}</p>
 
       {/* BOTONES */}
-      {match.can_join && <button onClick={() => onJoin(match.id)}>Unirme</button>}
-      {match.is_joined && <button onClick={() => onLeave(match.id)}>Salir</button>}
-      {match.is_owner && <button onClick={() => onFinish(match.id)}>Finalizar</button>}
+      <div style={{ marginTop: 10 }}>
+        {match.can_join && match.status !== "FINISHED" && (
+          <button onClick={() => onJoin(match.id)}>Unirme</button>
+        )}
+
+        {match.is_joined && match.status !== "FINISHED" && (
+          <button onClick={() => onLeave(match.id)}>Salir</button>
+        )}
+
+        {match.is_owner && match.status !== "FINISHED" && (
+          <button onClick={() => onFinish(match.id)}>Finalizar</button>
+        )}
+      </div>
 
       {/* 🔥 MOSTRAR JUGADORES */}
       {match.players && match.players.length > 0 && (
-        <div style={{ marginTop: 10 }}>
+        <div style={{ marginTop: 12 }}>
           <h4>👥 Jugadores del partido:</h4>
 
           {match.players.map((pid) => (
-            <div key={pid} style={{ borderTop: "1px solid gray", padding: 5 }}>
+            <div
+              key={pid}
+              style={{
+                borderTop: "1px solid #333",
+                padding: 6,
+              }}
+            >
               <p>Jugador ID: {pid}</p>
 
               {/* No te calificás a vos mismo */}

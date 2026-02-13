@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -13,11 +13,17 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* PUBLIC */}
+        {/* ================= PUBLIC ================= */}
+
+        {/* Login */}
         <Route path="/" element={<Login />} />
+        <Route path="/login" element={<Login />} />
+
+        {/* Register */}
         <Route path="/register" element={<Register />} />
 
-        {/* PRIVATE */}
+        {/* ================= PRIVATE ================= */}
+
         <Route
           path="/home"
           element={
@@ -50,6 +56,11 @@ export default function App() {
             </PrivateRoute>
           }
         />
+
+        {/* ================= FALLBACK ================= */}
+
+        {/* Cualquier ruta desconocida */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

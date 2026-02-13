@@ -47,7 +47,7 @@ export default function Home() {
     if (!user) return alert("Tenés que estar logueado");
 
     try {
-      await ratePlayer(1, playerId, stars); // matchId mock = 1
+      await ratePlayer(1, playerId, stars);
 
       setJugadores((prev) =>
         prev.map((j) =>
@@ -66,6 +66,26 @@ export default function Home() {
     }
   };
 
+  // =====================
+  // ORDENAR PARTIDOS
+  // =====================
+
+  const partidosActivos = partidos
+    .filter((p) => p.status !== "FINISHED")
+    .sort(
+      (a, b) =>
+        new Date(a.start_time).getTime() -
+        new Date(b.start_time).getTime()
+    );
+
+  const partidosFinalizados = partidos
+    .filter((p) => p.status === "FINISHED")
+    .sort(
+      (a, b) =>
+        new Date(b.start_time).getTime() -
+        new Date(a.start_time).getTime()
+    );
+
   return (
     <div style={{ padding: 20, fontFamily: "Arial", color: "white" }}>
       <h1>🎾 Padel App</h1>
@@ -75,7 +95,7 @@ export default function Home() {
       ) : (
         <>
           <p>
-            Bienvenido <b>{user.username}</b> – {user.clase}
+            Bienvenido <b>{user.username}</b>
           </p>
           <button onClick={logout}>Cerrar sesión</button>
         </>
@@ -114,14 +134,13 @@ export default function Home() {
       {/* PARTIDOS */}
       <h2>🎾 Partidos</h2>
 
-      {/* SIN CANCHA */}
       {!selectedCourt && (
         <p style={{ color: "orange" }}>
           Seleccioná una cancha para ver partidos
         </p>
       )}
 
-      {/* LOADING → skeleton cards */}
+      {/* LOADING */}
       {selectedCourt && loading && (
         <>
           <MatchCardSkeleton />
@@ -140,10 +159,10 @@ export default function Home() {
         </div>
       )}
 
-      {/* LISTA REAL */}
+      {/* PARTIDOS ACTIVOS */}
       {selectedCourt &&
         !loading &&
-        partidos.map((p) => (
+        partidosActivos.map((p) => (
           <MatchCard
             key={p.id}
             match={p}
@@ -152,6 +171,27 @@ export default function Home() {
             onFinish={finalizarPartido}
           />
         ))}
+
+      {/* FINALIZADOS */}
+      {selectedCourt &&
+        !loading &&
+        partidosFinalizados.length > 0 && (
+          <>
+            <h3 style={{ marginTop: 20, color: "#ff5252" }}>
+              Partidos finalizados
+            </h3>
+
+            {partidosFinalizados.map((p) => (
+              <MatchCard
+                key={p.id}
+                match={p}
+                onJoin={joinPartido}
+                onLeave={leavePartido}
+                onFinish={finalizarPartido}
+              />
+            ))}
+          </>
+        )}
 
       <hr />
 

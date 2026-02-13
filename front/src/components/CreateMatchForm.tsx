@@ -8,7 +8,7 @@ type Props = {
     level: string;
     price: number;
     court_id: number;
-  }) => void;
+  }) => Promise<void>;
 };
 
 export default function CreateMatchForm({ onCreate }: Props) {
@@ -18,8 +18,9 @@ export default function CreateMatchForm({ onCreate }: Props) {
   const [end, setEnd] = useState("");
   const [level, setLevel] = useState("6ta");
   const [price, setPrice] = useState(1000);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!selectedCourt) {
@@ -27,13 +28,42 @@ export default function CreateMatchForm({ onCreate }: Props) {
       return;
     }
 
-    onCreate({
-      start_time: start,
-      end_time: end,
-      level,
-      price,
-      court_id: selectedCourt.id,
-    });
+    if (!start || !end) {
+      alert("Tenés que completar fecha y horario");
+      return;
+    }
+
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    if (startDate >= endDate) {
+      alert("El horario de fin tiene que ser mayor al de inicio");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      await onCreate({
+        start_time: start,
+        end_time: end,
+        level,
+        price,
+        court_id: selectedCourt.id,
+      });
+
+      // limpiar form
+      setStart("");
+      setEnd("");
+      setLevel("6ta");
+      setPrice(1000);
+
+    } catch (err: any) {
+      alert(err.message || "No se pudo crear el partido");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -77,7 +107,9 @@ export default function CreateMatchForm({ onCreate }: Props) {
         onChange={(e) => setPrice(Number(e.target.value))}
       />
 
-      <button type="submit">Crear</button>
+      <button type="submit" disabled={loading}>
+        {loading ? "Creando..." : "Crear"}
+      </button>
     </form>
   );
 }
