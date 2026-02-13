@@ -1,99 +1,83 @@
 const pool = require("../config/db");
+const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
 
 // REGISTER
-const register = async (req, res) => {
-  const { email, username, password, clase } = req.body;
-
-  const clasesValidas = [
-    "8va", "7ma", "6ta", "5ta", "4ta", "3ra", "2da", "1ra"
-  ];
-
-  if (!email || !username || !password || !clase) {
-    return res.status(400).json({ message: "Faltan datos obligatorios" });
-  }
-
-  if (!clasesValidas.includes(clase)) {
-    return res.status(400).json({ message: "Clase inválida" });
-  }
-
+exports.register = async (req, res) => {
   try {
-    const hashedPassword = bcrypt.hashSync(password, 10);
+    const { email, username, password } = req.body;
 
-    const result = await pool.query(
-      `INSERT INTO users (email, username, password, clase, reputacion, role)
-       VALUES ($1, $2, $3, $4, 5, $5)
-       RETURNING id, email, username, clase, reputacion, role`,
-      [email, username, hashedPassword, clase, role || "USER"]
-    );
-
-    return res.status(201).json({
-      message: "Usuario registrado correctamente",
-      user: result.rows[0],
-    });
-
-  } catch (error) {
-    if (error.code === "23505") {
-      return res.status(409).json({ message: "El email ya está registrado" });
+    if (!email || !username || !password) {
+      return res.status(400).json({ message: "Faltan datos" });
     }
 
-    return res.status(500).json({ message: "Error interno del servidor" });
+    const existing = await pool.query(
+      "SELECT id FROM users WHERE email = $1 OR username = $2",
+      [email, username]
+    );
+
+    if (existing.rows.length) {
+      return res.status(400).json({ message: "Usuario o email ya existe" });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+
+    const { rows } = await pool.query(
+      `INSERT INTO users (email, username, password)
+       VALUES ($1, $2, $3)
+       RETURNING id, email, username`,
+      [email, username, hashed]
+    );
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("Register error:", err);
+    res.status(500).json({ message: "Error en registro" });
   }
 };
 
 // LOGIN
-const login = async (req, res) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ message: "Email y password requeridos" });
-  }
-
+exports.login = async (req, res) => {
   try {
-    const result = await pool.query(
+    const { email, password } = req.body;
+
+    const { rows } = await pool.query(
       "SELECT * FROM users WHERE email = $1",
       [email]
     );
 
-    if (!result.rows.length) {
-      return res.status(401).json({ message: "Credenciales inválidas" });
+    if (!rows.length) {
+      return res.status(400).json({ message: "Usuario no existe" });
     }
 
-    const user = result.rows[0];
+    const user = rows[0];
 
-    const validPassword = bcrypt.compareSync(password, user.password);
-    if (!validPassword) {
-      return res.status(401).json({ message: "Credenciales inválidas" });
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) {
+      return res.status(400).json({ message: "Contraseña incorrecta" });
     }
 
-    console.log("JWT_SECRET:", process.env.JWT_SECRET);
     const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-      },
+      { id: user.id },
       process.env.JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "7d" }
     );
 
-    return res.json({
-      message: "Login exitoso",
+    res.json({
       token,
       user: {
         id: user.id,
         email: user.email,
-        username: user.username,
-        clase: user.clase,
-        reputacion: user.reputacion,
-      },
+        username: user.username
+      }
     });
-
-  } catch (error) {
-    console.error("LOGIN ERROR:", error); // <-- esto te muestra el error real
-    return res.status(500).json({ message: "Error del servidor" });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ message: "Error login" });
   }
 };
 
-module.exports = { register, login };
+// PROFILE
+exports.profile = async (req, res) => {
+  res.json(req.user);
+};
