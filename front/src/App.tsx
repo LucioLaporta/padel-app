@@ -5,6 +5,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import Courts from "./pages/Courts";
+import MapPage from "./pages/MapPage";
 
 import AppLayout from "./components/AppLayout";
 import PrivateRoute from "./components/PrivateRoute";
@@ -13,16 +14,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* ================= PUBLIC ================= */}
 
-        {/* Login */}
         <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
-
-        {/* Register */}
         <Route path="/register" element={<Register />} />
-
-        {/* ================= PRIVATE ================= */}
 
         <Route
           path="/home"
@@ -57,10 +52,19 @@ export default function App() {
           }
         />
 
-        {/* ================= FALLBACK ================= */}
+        <Route
+          path="/map"
+          element={
+            <PrivateRoute>
+              <AppLayout>
+                <MapPage />
+              </AppLayout>
+            </PrivateRoute>
+          }
+        />
 
-        {/* Cualquier ruta desconocida */}
         <Route path="*" element={<Navigate to="/" replace />} />
+
       </Routes>
     </BrowserRouter>
   );

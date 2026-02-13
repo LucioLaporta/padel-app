@@ -3,7 +3,6 @@ import { useAuth } from "../context/AuthContext";
 import { useCourt } from "../context/CourtContext";
 
 import StarRating from "../components/StarRating";
-import CourtSelector from "../components/CourtSelector";
 import MatchCardSkeleton from "../components/MatchCardSkeleton";
 
 import { Cancha } from "../types/Cancha";
@@ -16,7 +15,7 @@ import MatchCard from "../components/MatchCard";
 import CreateMatchForm from "../components/CreateMatchForm";
 
 export default function Home() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { selectedCourt } = useCourt();
 
   // MATCHES REAL DATA
@@ -29,13 +28,7 @@ export default function Home() {
     finalizarPartido,
   } = useHomeData();
 
-  // MOCK DATA
-  const [canchas] = useState<Cancha[]>([
-    { id: 1, nombre: "Cancha Central", rating: 4.2, votos: 10 },
-    { id: 2, nombre: "Cancha Norte", rating: 3.8, votos: 6 },
-    { id: 3, nombre: "Cancha Sur", rating: 4.6, votos: 21 },
-  ]);
-
+  // MOCK DATA (jugadores)
   const [jugadores, setJugadores] = useState<Jugador[]>([
     { id: 1, nombre: "Juan Pérez", categoria: "6ta", rating: 4.1, votos: 12 },
     { id: 2, nombre: "Martín López", categoria: "5ta", rating: 3.6, votos: 8 },
@@ -87,28 +80,13 @@ export default function Home() {
     );
 
   return (
-    <div style={{ padding: 20, fontFamily: "Arial", color: "white" }}>
+    <div style={{ fontFamily: "Arial", color: "white" }}>
       <h1>🎾 Padel App</h1>
 
-      {!user ? (
-        <p style={{ color: "orange" }}>⚠ No logueado</p>
-      ) : (
-        <>
-          <p>
-            Bienvenido <b>{user.username}</b>
-          </p>
-          <button onClick={logout}>Cerrar sesión</button>
-        </>
-      )}
-
-      <hr />
-
-      {/* SELECTOR DE CANCHA GLOBAL */}
-      <CourtSelector />
-
+      {/* CANCHA SELECCIONADA DESDE SIDEBAR */}
       {selectedCourt && (
-        <p style={{ color: "#00e676" }}>
-          📍 Cancha seleccionada: {selectedCourt.name}
+        <p style={{ color: "#00e676", marginBottom: 10 }}>
+          📍 {selectedCourt.name}
         </p>
       )}
 
@@ -121,7 +99,7 @@ export default function Home() {
 
           {!selectedCourt ? (
             <p style={{ color: "orange" }}>
-              Primero seleccioná una cancha para crear partido
+              Seleccioná una cancha en el panel izquierdo
             </p>
           ) : (
             <CreateMatchForm onCreate={crearPartido} />
@@ -136,7 +114,7 @@ export default function Home() {
 
       {!selectedCourt && (
         <p style={{ color: "orange" }}>
-          Seleccioná una cancha para ver partidos
+          Seleccioná una cancha en el sidebar para ver partidos
         </p>
       )}
 
