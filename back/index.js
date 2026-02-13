@@ -10,11 +10,13 @@ app.use(express.json());
 const healthRoutes = require("./routes/health.routes");
 const authRoutes = require("./routes/auth.routes");
 const matchesRoutes = require("./routes/matches.routes");
+const courtsRoutes = require("./routes/courts.routes");
 
 // MOUNT ROUTES
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/matches", matchesRoutes);
+app.use("/api/courts", courtsRoutes);
 
 // ROOT
 app.get("/", (req, res) => {
