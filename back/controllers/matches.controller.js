@@ -31,7 +31,7 @@ const getMatches = async (req, res) => {
     let matches = result.rows.map(m => {
       const players = m.players || [];
       const playersCount = parseInt(m.players_count);
-      const maxPlayers = 4;
+      const maxPlayers = m.max_players; // 🔥 dinámico ahora
       const isOwner = userId && m.created_by === userId;
 
       return {
@@ -42,7 +42,7 @@ const getMatches = async (req, res) => {
         is_full: playersCount >= maxPlayers,
         is_joined: userId ? players.includes(userId) : false,
         is_owner: !!isOwner,
-        can_join: userId && !players.includes(userId) && playersCount < 4,
+        can_join: userId && !players.includes(userId) && playersCount < maxPlayers,
       };
     });
 
@@ -58,13 +58,14 @@ const getMatches = async (req, res) => {
   }
 };
 
+
 // ================= CREATE MATCH =================
 const createMatch = async (req, res) => {
   try {
     if (!req.user?.id) return res.status(401).json({ message: "No autorizado" });
 
     const userId = parseInt(req.user.id);
-    const { start_time, end_time, level, price, court_id } = req.body;
+    const { start_time, end_time, level, price, court_id, max_players } = req.body;
 
     if (!start_time || !end_time || !level || !price || !court_id) {
       return res.status(400).json({ message: "Todos los campos son obligatorios" });
@@ -85,12 +86,14 @@ const createMatch = async (req, res) => {
     try {
       await client.query("BEGIN");
 
+      const maxPlayersFinal = max_players ? parseInt(max_players) : 4;
+
       // Crear match
       const matchResult = await client.query(`
-        INSERT INTO matches (start_time, end_time, level, price, created_by, status, court_id)
-        VALUES ($1,$2,$3,$4,$5,'OPEN',$6)
+        INSERT INTO matches (start_time, end_time, level, price, created_by, status, court_id, max_players)
+        VALUES ($1,$2,$3,$4,$5,'OPEN',$6,$7)
         RETURNING *
-      `, [start, end, level, price, userId, court_id]);
+      `, [start, end, level, price, userId, court_id, maxPlayersFinal]);
 
       const match = matchResult.rows[0];
 
@@ -128,9 +131,9 @@ const joinMatch = async (req, res) => {
     try {
       await client.query("BEGIN");
 
-      // Lock match
+      // Lock match + traer max_players
       const match = await client.query(
-        "SELECT id FROM matches WHERE id=$1 FOR UPDATE",
+        "SELECT id, max_players FROM matches WHERE id=$1 FOR UPDATE",
         [matchId]
       );
 
@@ -156,7 +159,9 @@ const joinMatch = async (req, res) => {
         [matchId]
       );
 
-      if (parseInt(count.rows[0].count) >= 4) {
+      const maxPlayers = match.rows[0].max_players;
+
+      if (parseInt(count.rows[0].count) >= maxPlayers) {
         await client.query("ROLLBACK");
         return res.status(400).json({ message: "Partido lleno" });
       }
