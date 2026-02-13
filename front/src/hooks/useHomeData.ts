@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useCourt } from "../context/CourtContext";
 
 import { Cancha } from "../types/Cancha";
 import { Jugador } from "../types/Jugador";
@@ -10,15 +11,16 @@ import { getCanchas } from "../services/canchas.service";
 import { getJugadores } from "../services/jugadores.service";
 
 import {
-  getMatches,
+  getMatchesByCourt,
   createMatch,
   joinMatch,
   leaveMatch,
-  finishMatch, // ✅ CAMBIADO
+  finishMatch,
 } from "../services/matches.service";
 
 export function useHomeData() {
   const { user } = useAuth();
+  const { selectedCourt } = useCourt();
 
   const [canchas, setCanchas] = useState<Cancha[]>([]);
   const [jugadores, setJugadores] = useState<Jugador[]>([]);
@@ -34,15 +36,21 @@ export function useHomeData() {
       setLoading(true);
       setError(null);
 
-      const [canchasData, jugadoresData, matchesData] = await Promise.all([
+      const [canchasData, jugadoresData] = await Promise.all([
         getCanchas(),
         getJugadores(),
-        getMatches(),
       ]);
 
       setCanchas(canchasData);
       setJugadores(jugadoresData);
-      setPartidos(matchesData);
+
+      // 🔥 Traer partidos SOLO si hay cancha seleccionada
+      if (selectedCourt) {
+        const matchesData = await getMatchesByCourt(selectedCourt.id);
+        setPartidos(matchesData);
+      } else {
+        setPartidos([]);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error cargando datos");
     } finally {
@@ -52,7 +60,7 @@ export function useHomeData() {
 
   useEffect(() => {
     cargarDatos();
-  }, []);
+  }, [selectedCourt]);
 
   // =====================
   // ACTIONS
@@ -63,26 +71,31 @@ export function useHomeData() {
     end_time: string;
     level: string;
     price: number;
+    court_id: number;
   }) => {
     if (!user) return;
+
     await createMatch(payload);
     cargarDatos();
   };
 
   const joinPartido = async (matchId: number) => {
     if (!user) return;
+
     await joinMatch(matchId);
     cargarDatos();
   };
 
   const leavePartido = async (matchId: number) => {
     if (!user) return;
+
     await leaveMatch(matchId);
     cargarDatos();
   };
 
   const finalizarPartido = async (matchId: number) => {
     if (!user) return;
+
     await finishMatch(matchId);
     cargarDatos();
   };

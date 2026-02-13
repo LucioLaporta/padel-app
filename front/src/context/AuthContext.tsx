@@ -14,13 +14,12 @@ export interface User {
   id: number;
   email: string;
   username: string;
-  clase: string;
-  reputacion: number;
 }
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
+  loadingAuth: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
@@ -42,6 +41,7 @@ export function AuthProvider({
 }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
 
   // =====================
   // INIT SESSION
@@ -54,6 +54,8 @@ export function AuthProvider({
       setToken(savedToken);
       setUser(JSON.parse(savedUser));
     }
+
+    setLoadingAuth(false);
   }, []);
 
   // =====================
@@ -81,7 +83,7 @@ export function AuthProvider({
 
   return (
     <AuthContext.Provider
-      value={{ user, token, login, logout }}
+      value={{ user, token, loadingAuth, login, logout }}
     >
       {children}
     </AuthContext.Provider>

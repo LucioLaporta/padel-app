@@ -2,10 +2,12 @@ import { apiFetch } from "./api";
 import { Partido } from "../types/Partido";
 
 // =====================
-// GET PARTIDOS
+// GET MATCHES POR CANCHA
 // =====================
-export const getMatches = async (): Promise<Partido[]> => {
-  const data = await apiFetch("/matches");
+export const getMatchesByCourt = async (
+  courtId: number
+): Promise<Partido[]> => {
+  const data = await apiFetch(`/courts/${courtId}/matches`);
   return data.matches;
 };
 
@@ -17,6 +19,7 @@ export const createMatch = async (payload: {
   end_time: string;
   level: string;
   price: number;
+  court_id: number;
 }) => {
   const data = await apiFetch("/matches", {
     method: "POST",

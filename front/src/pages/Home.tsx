@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useCourt } from "../context/CourtContext";
+
 import StarRating from "../components/StarRating";
+import CourtSelector from "../components/CourtSelector";
+import MatchCardSkeleton from "../components/MatchCardSkeleton";
+
 import { Cancha } from "../types/Cancha";
 import { Jugador } from "../types/Jugador";
 import { ratePlayer } from "../services/rating.service";
@@ -12,6 +17,7 @@ import CreateMatchForm from "../components/CreateMatchForm";
 
 export default function Home() {
   const { user, logout } = useAuth();
+  const { selectedCourt } = useCourt();
 
   // MATCHES REAL DATA
   const {
@@ -20,7 +26,7 @@ export default function Home() {
     crearPartido,
     joinPartido,
     leavePartido,
-    finalizar,
+    finalizarPartido,
   } = useHomeData();
 
   // MOCK DATA
@@ -77,37 +83,92 @@ export default function Home() {
 
       <hr />
 
+      {/* SELECTOR DE CANCHA GLOBAL */}
+      <CourtSelector />
+
+      {selectedCourt && (
+        <p style={{ color: "#00e676" }}>
+          📍 Cancha seleccionada: {selectedCourt.name}
+        </p>
+      )}
+
+      <hr />
+
+      {/* CREAR PARTIDO */}
       {user && (
         <>
           <h2>➕ Crear Partido</h2>
-          <CreateMatchForm onCreate={crearPartido} />
+
+          {!selectedCourt ? (
+            <p style={{ color: "orange" }}>
+              Primero seleccioná una cancha para crear partido
+            </p>
+          ) : (
+            <CreateMatchForm onCreate={crearPartido} />
+          )}
+
           <hr />
         </>
       )}
 
+      {/* PARTIDOS */}
       <h2>🎾 Partidos</h2>
-      {loading && <p>Cargando...</p>}
 
-      {partidos.map((p) => (
-        <MatchCard
-          key={p.id}
-          match={p}
-          onJoin={joinPartido}
-          onLeave={leavePartido}
-          onFinish={finalizar}
-        />
-      ))}
+      {/* SIN CANCHA */}
+      {!selectedCourt && (
+        <p style={{ color: "orange" }}>
+          Seleccioná una cancha para ver partidos
+        </p>
+      )}
+
+      {/* LOADING → skeleton cards */}
+      {selectedCourt && loading && (
+        <>
+          <MatchCardSkeleton />
+          <MatchCardSkeleton />
+          <MatchCardSkeleton />
+        </>
+      )}
+
+      {/* SIN PARTIDOS */}
+      {selectedCourt && !loading && partidos.length === 0 && (
+        <div style={{ marginTop: 10 }}>
+          <p>Esta cancha todavía no tiene partidos</p>
+          <p style={{ color: "#00e676" }}>
+            Sé el primero en crear uno 👇
+          </p>
+        </div>
+      )}
+
+      {/* LISTA REAL */}
+      {selectedCourt &&
+        !loading &&
+        partidos.map((p) => (
+          <MatchCard
+            key={p.id}
+            match={p}
+            onJoin={joinPartido}
+            onLeave={leavePartido}
+            onFinish={finalizarPartido}
+          />
+        ))}
 
       <hr />
 
+      {/* JUGADORES */}
       <h2>👤 Jugadores</h2>
       {jugadores.map((j) => (
         <div key={j.id} style={cardStyle}>
           <h3>{j.nombre}</h3>
           <p>Categoría: {j.categoria}</p>
-          <p>⭐ {j.rating.toFixed(1)} ({j.votos} votos)</p>
+          <p>
+            ⭐ {j.rating.toFixed(1)} ({j.votos} votos)
+          </p>
 
-          <StarRating rating={j.rating} onRate={(v) => handleRateJugador(j.id, v)} />
+          <StarRating
+            rating={j.rating}
+            onRate={(v) => handleRateJugador(j.id, v)}
+          />
         </div>
       ))}
     </div>
